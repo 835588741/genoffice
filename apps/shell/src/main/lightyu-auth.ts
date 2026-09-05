@@ -2,7 +2,6 @@ import { randomBytes } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { BrowserWindow, app, safeStorage } from 'electron'
-import QRCode from 'qrcode'
 
 const API_BASE_URL = 'https://5555api.com'
 const WECHAT_APP_ID = 'wxc6b5178fff4442e7'
@@ -54,6 +53,7 @@ let activeLogin:
       timer: NodeJS.Timeout
       emit: (progress: LightyuLoginProgress) => void
       done: boolean
+      qrPublished: boolean
     }
   | undefined
 
@@ -232,6 +232,33 @@ function inspectCallback(url: string): void {
   void exchangeCode(code, state)
 }
 
+async function publishWechatQr(flow: NonNullable<typeof activeLogin>): Promise<void> {
+  if (flow.done || flow.qrPublished || flow.window.isDestroyed()) return
+  const qrUrl = await flow.window.webContents.executeJavaScript(
+    `(() => document.querySelector('.js_qrcode_img')?.src || '')()`,
+    true,
+  )
+  if (typeof qrUrl !== 'string' || !qrUrl) {
+    throw new Error('微信二维码加载失败，请刷新重试')
+  }
+  const parsed = new URL(qrUrl)
+  if (parsed.protocol !== 'https:' || parsed.origin !== 'https://open.weixin.qq.com') {
+    throw new Error('微信二维码地址无效，请刷新重试')
+  }
+  const response = await fetch(parsed)
+  if (!response.ok) throw new Error('微信二维码加载失败，请刷新重试')
+  const contentType = response.headers.get('content-type')?.split(';', 1)[0] || 'image/jpeg'
+  const image = Buffer.from(await response.arrayBuffer()).toString('base64')
+  if (activeLogin !== flow || flow.done) return
+  flow.qrPublished = true
+  flow.emit({
+    phase: 'qr',
+    qrDataUrl: `data:${contentType};base64,${image}`,
+    url: flow.oauthUrl,
+    expiresInSec: LOGIN_TTL_SEC,
+  })
+}
+
 export function startLightyuLogin(onEvent: (progress: LightyuLoginProgress) => void): boolean {
   cancelLightyuLogin()
   const state = randomLoginState()
@@ -252,10 +279,28 @@ export function startLightyuLogin(onEvent: (progress: LightyuLoginProgress) => v
     () => finishLogin({ phase: 'error', error: '二维码已过期，请刷新重试' }),
     LOGIN_TTL_SEC * 1000,
   )
-  activeLogin = { state, oauthUrl, window: authWindow, timer, emit: onEvent, done: false }
+  activeLogin = {
+    state,
+    oauthUrl,
+    window: authWindow,
+    timer,
+    emit: onEvent,
+    done: false,
+    qrPublished: false,
+  }
   const inspect = (_event: unknown, url: string) => inspectCallback(url)
   authWindow.webContents.on('will-redirect', inspect)
   authWindow.webContents.on('did-navigate', inspect)
+  authWindow.webContents.on('did-finish-load', () => {
+    const flow = activeLogin
+    if (!flow || flow.window !== authWindow || flow.done) return
+    void publishWechatQr(flow).catch((error: unknown) => {
+      finishLogin({
+        phase: 'error',
+        error: error instanceof Error ? error.message : '二维码生成失败',
+      })
+    })
+  })
   authWindow.webContents.on('did-fail-load', (_event, errorCode) => {
     if (errorCode !== -3) finishLogin({ phase: 'error', error: '无法打开微信登录页面，请检查网络' })
   })
@@ -264,22 +309,12 @@ export function startLightyuLogin(onEvent: (progress: LightyuLoginProgress) => v
       finishLogin({ phase: 'error', error: '登录窗口已关闭' })
     }
   })
-  void QRCode.toDataURL(oauthUrl, {
-    width: 260,
-    margin: 2,
-    errorCorrectionLevel: 'M',
+  void authWindow.loadURL(oauthUrl).catch((error: unknown) => {
+    finishLogin({
+      phase: 'error',
+      error: error instanceof Error ? error.message : '无法打开微信登录页面，请检查网络',
+    })
   })
-    .then((qrDataUrl) => {
-      if (!activeLogin || activeLogin.window !== authWindow || activeLogin.done) return
-      onEvent({ phase: 'qr', qrDataUrl, url: oauthUrl, expiresInSec: LOGIN_TTL_SEC })
-      return authWindow.loadURL(oauthUrl)
-    })
-    .catch((error: unknown) => {
-      finishLogin({
-        phase: 'error',
-        error: error instanceof Error ? error.message : '二维码生成失败',
-      })
-    })
   return true
 }
 

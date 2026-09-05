@@ -575,6 +575,7 @@ function AccountEntry({
       if (seq === statusSeq.current) setStatus(s)
     })
     setSettingsOpen(true)
+    if (!loggedIn && !waiting) startLogin()
   }
 
   return (
