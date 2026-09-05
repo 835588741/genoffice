@@ -31,7 +31,6 @@
     "@genoffice/sheets": "*",
     "@genoffice/slides": "*",
     "@genoffice/ui": "*",
-    "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.0.4",
@@ -46,8 +45,5 @@
     "vite": "^7.3.1",
     "vitest": "^4.1.10"
   },
-  "author": "GenOffice",
-  "dependencies": {
-    "qrcode": "^1.5.4"
-  }
+  "author": "GenOffice"
 }

@@ -1,13 +1,15 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
+import { createServer, type Server } from 'node:http'
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { BrowserWindow, app, safeStorage } from 'electron'
+import { app, safeStorage, shell } from 'electron'
 
 const API_BASE_URL = 'https://5555api.com'
-const WECHAT_APP_ID = 'wxc6b5178fff4442e7'
-const WECHAT_REDIRECT_URI = `${API_BASE_URL}/login.html`
-const LOGIN_TTL_SEC = 180
+const CLIENT_ID = 'genoffice-desktop'
 const AUTH_FILE_NAME = 'lightyu-auth.json'
+const SESSION_TTL = 30 * 24 * 60 * 60 * 1000
+const FLOW_TTL = 10 * 60 * 1000
+const CALLBACK_PATH = '/desktop/callback'
 
 export interface LightyuAccountStatus {
   loggedIn: boolean
@@ -18,14 +20,12 @@ export interface LightyuAccountStatus {
 }
 
 export interface LightyuLoginProgress {
-  phase: 'qr' | 'scanned' | 'success' | 'error'
-  qrDataUrl?: string
-  url?: string
-  expiresInSec?: number
+  phase: 'launched' | 'success' | 'error'
   error?: string
 }
 
-interface AccountProfile {
+interface Profile {
+  id?: number
   nickname?: string
   avatar?: string
   email?: string
@@ -34,67 +34,60 @@ interface AccountProfile {
 interface StoredAuth {
   token: string
   expiresAt: number
-  profile: AccountProfile
+  profile: Profile
 }
 
-interface AuthFile {
+interface DiskAuth {
   token: string
   tokenEncoding?: 'plain' | 'safeStorage'
   expiresAt: number
-  profile?: AccountProfile
+  profile?: Profile
+}
+
+interface AuthFlow {
+  server: Server
+  state: string
+  verifier: string
+  redirectUri: string
+  emit: (progress: LightyuLoginProgress) => void
+  timer: NodeJS.Timeout
+  done: boolean
+  processing: boolean
 }
 
 let cachedAuth: StoredAuth | null | undefined
-let activeLogin:
-  | {
-      state: string
-      oauthUrl: string
-      window: BrowserWindow
-      timer: NodeJS.Timeout
-      emit: (progress: LightyuLoginProgress) => void
-      done: boolean
-      qrPublished: boolean
-    }
-  | undefined
+let activeFlow: AuthFlow | undefined
+let lastAuthUrl = ''
 
 export function lightyuAuthPath(): string {
   return join(app.getPath('userData'), AUTH_FILE_NAME)
 }
 
-export function buildLightyuOAuthUrl(state: string): string {
-  const params = new URLSearchParams({
-    appid: WECHAT_APP_ID,
-    redirect_uri: WECHAT_REDIRECT_URI,
-    response_type: 'code',
-    scope: 'snsapi_login',
-    state,
-  })
-  return `https://open.weixin.qq.com/connect/qrconnect?${params.toString()}#wechat_redirect`
+function encodeBase64Url(value: Buffer): string {
+  return value.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')
 }
 
-export function randomLoginState(): string {
-  return randomBytes(16).toString('hex')
-}
-
-function asProfile(value: unknown): AccountProfile {
+function normalizeProfile(value: unknown): Profile {
   if (!value || typeof value !== 'object') return {}
   const raw = value as Record<string, unknown>
-  const avatar = typeof raw.avatar === 'string' ? raw.avatar.trim() : ''
-  let safeAvatar = ''
-  try {
-    const parsed = new URL(avatar)
-    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') safeAvatar = parsed.toString()
-  } catch {
-    // Ignore malformed avatar URLs returned by the remote service.
+  const result: Profile = {}
+  if (typeof raw.id === 'number' && Number.isSafeInteger(raw.id)) result.id = raw.id
+  if (typeof raw.nickname === 'string' && raw.nickname.trim()) result.nickname = raw.nickname.trim()
+  if (typeof raw.email === 'string' && raw.email.trim()) result.email = raw.email.trim()
+  if (typeof raw.avatar === 'string' && raw.avatar.trim()) {
+    try {
+      const avatar = new URL(raw.avatar.trim())
+      if (avatar.protocol === 'https:' || avatar.protocol === 'http:')
+        result.avatar = avatar.toString()
+    } catch {
+      // Ignore malformed avatar URLs returned by the remote service.
+    }
   }
-  return {
-    ...(typeof raw.nickname === 'string' && raw.nickname ? { nickname: raw.nickname } : {}),
-    ...(safeAvatar ? { avatar: safeAvatar } : {}),
-    ...(typeof raw.email === 'string' && raw.email ? { email: raw.email } : {}),
-  }
+  return result
 }
 
-function decryptToken(raw: AuthFile): string {
+function decryptStoredToken(raw: DiskAuth): string {
+  if (typeof raw.token !== 'string') return ''
   if (raw.tokenEncoding !== 'safeStorage') return raw.token
   try {
     if (!safeStorage.isEncryptionAvailable()) return ''
@@ -106,11 +99,12 @@ function decryptToken(raw: AuthFile): string {
 
 function readAuth(): StoredAuth | null {
   try {
-    const raw = JSON.parse(readFileSync(lightyuAuthPath(), 'utf8')) as Partial<AuthFile>
-    if (typeof raw.token !== 'string' || typeof raw.expiresAt !== 'number') return null
-    const token = decryptToken(raw as AuthFile)
-    if (!token || raw.expiresAt <= Date.now()) return null
-    return { token, expiresAt: raw.expiresAt, profile: asProfile(raw.profile) }
+    const raw = JSON.parse(readFileSync(lightyuAuthPath(), 'utf8')) as Partial<DiskAuth>
+    if (typeof raw.expiresAt !== 'number' || raw.expiresAt <= Date.now()) return null
+    const token = decryptStoredToken(raw as DiskAuth)
+    return token
+      ? { token, expiresAt: raw.expiresAt, profile: normalizeProfile(raw.profile) }
+      : null
   } catch {
     return null
   }
@@ -123,28 +117,28 @@ function loadAuth(): StoredAuth | null {
 
 function saveAuth(auth: StoredAuth): void {
   mkdirSync(dirname(lightyuAuthPath()), { recursive: true })
+
   let token = auth.token
-  let tokenEncoding: AuthFile['tokenEncoding'] = 'plain'
+  let tokenEncoding: DiskAuth['tokenEncoding'] = 'plain'
   try {
     if (safeStorage.isEncryptionAvailable()) {
-      token = safeStorage.encryptString(auth.token).toString('base64')
+      token = safeStorage.encryptString(token).toString('base64')
       tokenEncoding = 'safeStorage'
     }
   } catch {
     // A 0600 file is the fallback on systems without a usable keychain.
   }
-  const data: AuthFile = {
-    token,
-    tokenEncoding,
-    expiresAt: auth.expiresAt,
-    profile: auth.profile,
+
+  writeFileSync(
+    lightyuAuthPath(),
+    `${JSON.stringify({ token, tokenEncoding, expiresAt: auth.expiresAt, profile: auth.profile }, null, 2)}\n`,
+    { encoding: 'utf8', mode: 0o600 },
+  )
+  try {
+    chmodSync(lightyuAuthPath(), 0o600)
+  } catch {
+    // Best effort: the file was created with mode 0600 above.
   }
-  writeFileSync(lightyuAuthPath(), `${JSON.stringify(data, null, 2)}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-  })
-  // writeFileSync does not tighten permissions when the file already exists.
-  chmodSync(lightyuAuthPath(), 0o600)
   cachedAuth = auth
 }
 
@@ -152,186 +146,172 @@ function clearAuth(): void {
   try {
     if (existsSync(lightyuAuthPath())) unlinkSync(lightyuAuthPath())
   } catch {
-    // Local logout should remain usable even if cleanup is interrupted.
+    // Local logout remains usable if cleanup is interrupted.
   }
   cachedAuth = null
 }
 
-async function fetchProfile(token: string): Promise<AccountProfile> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/data/user/fetchUser`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: token,
-      },
-    })
-    if (!response.ok) return {}
-    const result = (await response.json()) as Record<string, unknown>
-    return result.code === 200 ? asProfile(result.data) : {}
-  } catch {
-    // Login remains valid if the optional profile request is unavailable.
-    return {}
-  }
-}
-
-function finishLogin(progress: LightyuLoginProgress): void {
-  const flow = activeLogin
-  if (!flow || flow.done) return
+function finishFlow(flow: AuthFlow, progress: LightyuLoginProgress): void {
+  if (flow.done) return
   flow.done = true
   clearTimeout(flow.timer)
-  if (!flow.window.isDestroyed()) flow.window.close()
-  activeLogin = undefined
+  if (activeFlow === flow) {
+    activeFlow = undefined
+    lastAuthUrl = ''
+  }
+  flow.server.close()
   flow.emit(progress)
 }
 
-async function exchangeCode(code: string, state: string): Promise<void> {
-  const flow = activeLogin
-  if (!flow || flow.done || state !== flow.state) return
-  flow.emit({ phase: 'scanned' })
+function cancelFlow(flow: AuthFlow): void {
+  if (flow.done) return
+  flow.done = true
+  clearTimeout(flow.timer)
+  if (activeFlow === flow) {
+    activeFlow = undefined
+    lastAuthUrl = ''
+  }
+  flow.server.close()
+}
+
+async function exchangeDesktopCode(flow: AuthFlow, code: string): Promise<void> {
   try {
-    const response = await fetch(`${API_BASE_URL}/data/user/wxlogin`, {
+    const response = await fetch(`${API_BASE_URL}/data/user/desktop/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify({
+        code,
+        clientId: CLIENT_ID,
+        redirectUri: flow.redirectUri,
+        codeVerifier: flow.verifier,
+      }),
     })
-    const result = (await response.json()) as Record<string, unknown>
-    const data = result.data as Record<string, unknown> | undefined
-    const token = typeof data?.token === 'string' ? data.token : ''
-    if (!response.ok || result.code !== 200 || !token) {
-      throw new Error(typeof result.msg === 'string' ? result.msg : '微信登录失败，请重试')
+    const result = (await response.json()) as {
+      code?: number
+      msg?: string
+      data?: { token?: string; expire?: number; profile?: Profile }
     }
-    const expire = typeof result.expire === 'number' ? result.expire : Date.now() + 86_400_000
-    // A second login may have replaced this flow while the request was in flight.
-    if (activeLogin !== flow || flow.done) return
-    const profile = await fetchProfile(token)
-    if (activeLogin !== flow || flow.done) return
-    saveAuth({ token, expiresAt: expire, profile })
-    finishLogin({ phase: 'success' })
-  } catch (error) {
-    finishLogin({
-      phase: 'error',
-      error: error instanceof Error ? error.message : '微信登录失败，请重试',
-    })
-  }
-}
+    const token = result.data?.token
+    if (!response.ok || result.code !== 200 || typeof token !== 'string' || !token) {
+      finishFlow(flow, { phase: 'error', error: result.msg || '授权兑换失败，请重试' })
+      return
+    }
 
-function inspectCallback(url: string): void {
-  const flow = activeLogin
-  if (!flow || flow.done) return
-  let parsed: URL
-  try {
-    parsed = new URL(url)
+    saveAuth({
+      token,
+      expiresAt:
+        typeof result.data?.expire === 'number' && result.data.expire > Date.now()
+          ? result.data.expire
+          : Date.now() + SESSION_TTL,
+      profile: normalizeProfile(result.data?.profile),
+    })
+    finishFlow(flow, { phase: 'success' })
   } catch {
-    return
+    finishFlow(flow, { phase: 'error', error: '授权兑换失败，请检查网络后重试' })
   }
-  if (parsed.origin !== API_BASE_URL || parsed.pathname !== '/login.html') return
-  const state = parsed.searchParams.get('state') || ''
-  const code = parsed.searchParams.get('code') || ''
-  if (!state || state !== flow.state || !code) return
-  void exchangeCode(code, state)
 }
 
-async function publishWechatQr(flow: NonNullable<typeof activeLogin>): Promise<void> {
-  if (flow.done || flow.qrPublished || flow.window.isDestroyed()) return
-  const qrUrl = await flow.window.webContents.executeJavaScript(
-    `(() => document.querySelector('.js_qrcode_img')?.src || '')()`,
-    true,
-  )
-  if (typeof qrUrl !== 'string' || !qrUrl) {
-    throw new Error('微信二维码加载失败，请刷新重试')
-  }
-  const parsed = new URL(qrUrl)
-  if (parsed.protocol !== 'https:' || parsed.origin !== 'https://open.weixin.qq.com') {
-    throw new Error('微信二维码地址无效，请刷新重试')
-  }
-  const response = await fetch(parsed)
-  if (!response.ok) throw new Error('微信二维码加载失败，请刷新重试')
-  const contentType = response.headers.get('content-type')?.split(';', 1)[0] || 'image/jpeg'
-  const image = Buffer.from(await response.arrayBuffer()).toString('base64')
-  if (activeLogin !== flow || flow.done) return
-  flow.qrPublished = true
-  flow.emit({
-    phase: 'qr',
-    qrDataUrl: `data:${contentType};base64,${image}`,
-    url: flow.oauthUrl,
-    expiresInSec: LOGIN_TTL_SEC,
-  })
-}
-
-export function startLightyuLogin(onEvent: (progress: LightyuLoginProgress) => void): boolean {
-  cancelLightyuLogin()
-  const state = randomLoginState()
-  const oauthUrl = buildLightyuOAuthUrl(state)
-  const authWindow = new BrowserWindow({
-    width: 460,
-    height: 720,
-    show: false,
-    title: '微信登录',
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      partition: 'persist:lightyu-login',
-    },
-  })
-  const timer = setTimeout(
-    () => finishLogin({ phase: 'error', error: '二维码已过期，请刷新重试' }),
-    LOGIN_TTL_SEC * 1000,
-  )
-  activeLogin = {
-    state,
-    oauthUrl,
-    window: authWindow,
-    timer,
-    emit: onEvent,
-    done: false,
-    qrPublished: false,
-  }
-  const inspect = (_event: unknown, url: string) => inspectCallback(url)
-  authWindow.webContents.on('will-redirect', inspect)
-  authWindow.webContents.on('did-navigate', inspect)
-  authWindow.webContents.on('did-finish-load', () => {
-    const flow = activeLogin
-    if (!flow || flow.window !== authWindow || flow.done) return
-    void publishWechatQr(flow).catch((error: unknown) => {
-      finishLogin({
-        phase: 'error',
-        error: error instanceof Error ? error.message : '二维码生成失败',
-      })
-    })
-  })
-  authWindow.webContents.on('did-fail-load', (_event, errorCode) => {
-    if (errorCode !== -3) finishLogin({ phase: 'error', error: '无法打开微信登录页面，请检查网络' })
-  })
-  authWindow.on('closed', () => {
-    if (activeLogin?.window === authWindow && !activeLogin.done) {
-      finishLogin({ phase: 'error', error: '登录窗口已关闭' })
+function createCallbackServer(flow: AuthFlow): Server {
+  return createServer((request, response) => {
+    if (request.method !== 'GET') {
+      response.writeHead(405)
+      response.end()
+      return
     }
+
+    let callbackUrl: URL
+    try {
+      callbackUrl = new URL(request.url || '/', 'http://127.0.0.1')
+    } catch {
+      response.writeHead(400)
+      response.end('回调地址无效')
+      return
+    }
+
+    if (callbackUrl.pathname !== CALLBACK_PATH) {
+      response.writeHead(404)
+      response.end()
+      return
+    }
+    if (flow.done || flow.processing) {
+      response.writeHead(409)
+      response.end('授权流程已完成')
+      return
+    }
+
+    const returnedState = callbackUrl.searchParams.get('state') || ''
+    const code = callbackUrl.searchParams.get('code') || ''
+    const error = callbackUrl.searchParams.get('error') || ''
+    if (returnedState !== flow.state) {
+      response.writeHead(400)
+      response.end('授权状态无效')
+      finishFlow(flow, { phase: 'error', error: '授权状态无效，请重试' })
+      return
+    }
+    if (error || !code) {
+      response.writeHead(400)
+      response.end('授权失败')
+      finishFlow(flow, { phase: 'error', error: '网页端未完成登录授权' })
+      return
+    }
+
+    flow.processing = true
+    response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+    response.end(
+      '<!doctype html><meta charset="utf-8"><title>轻语 API</title><p>授权成功，请返回 GenOffice。</p>',
+    )
+    void exchangeDesktopCode(flow, code)
   })
-  void authWindow.loadURL(oauthUrl).catch((error: unknown) => {
-    finishLogin({
-      phase: 'error',
-      error: error instanceof Error ? error.message : '无法打开微信登录页面，请检查网络',
+}
+
+export function startLightyuLogin(emit: (progress: LightyuLoginProgress) => void): boolean {
+  if (activeFlow) cancelFlow(activeFlow)
+
+  const state = encodeBase64Url(randomBytes(24))
+  const verifier = encodeBase64Url(randomBytes(32))
+  const challenge = encodeBase64Url(createHash('sha256').update(verifier).digest())
+  const flow = {} as AuthFlow
+  const server = createCallbackServer(flow)
+  Object.assign(flow, {
+    server,
+    state,
+    verifier,
+    redirectUri: '',
+    emit,
+    timer: setTimeout(
+      () => finishFlow(flow, { phase: 'error', error: '登录授权已超时，请重试' }),
+      FLOW_TTL,
+    ),
+    done: false,
+    processing: false,
+  })
+  activeFlow = flow
+
+  server.listen(0, '127.0.0.1', () => {
+    const address = server.address()
+    if (!address || typeof address === 'string') {
+      finishFlow(flow, { phase: 'error', error: '无法启动本地授权服务' })
+      return
+    }
+    flow.redirectUri = `http://127.0.0.1:${address.port}${CALLBACK_PATH}`
+    lastAuthUrl = `${API_BASE_URL}/login.html?${new URLSearchParams({
+      client_id: CLIENT_ID,
+      redirect_uri: flow.redirectUri,
+      state,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+    }).toString()}`
+    emit({ phase: 'launched' })
+    void shell.openExternal(lastAuthUrl).catch(() => {
+      // The renderer still exposes the manual-open action when this fails.
     })
   })
+  server.on('error', () => finishFlow(flow, { phase: 'error', error: '无法启动本地授权服务' }))
   return true
 }
 
 export function openLightyuLoginWindow(): void {
-  if (activeLogin && !activeLogin.window.isDestroyed()) {
-    activeLogin.window.show()
-    activeLogin.window.focus()
-  }
-}
-
-export function cancelLightyuLogin(): void {
-  if (!activeLogin) return
-  const flow = activeLogin
-  flow.done = true
-  clearTimeout(flow.timer)
-  if (!flow.window.isDestroyed()) flow.window.close()
-  activeLogin = undefined
+  if (lastAuthUrl) void shell.openExternal(lastAuthUrl)
 }
 
 export function lightyuAccountStatus(): LightyuAccountStatus {
@@ -344,6 +324,15 @@ export function lightyuAccountStatus(): LightyuAccountStatus {
 }
 
 export function lightyuLogout(): void {
-  cancelLightyuLogin()
+  const auth = loadAuth()
+  if (auth) {
+    void fetch(`${API_BASE_URL}/data/user/desktop/logout`, {
+      method: 'POST',
+      headers: { Authorization: auth.token },
+    }).catch(() => {
+      // The local credential is cleared even if the server is temporarily offline.
+    })
+  }
+  if (activeFlow) cancelFlow(activeFlow)
   clearAuth()
 }

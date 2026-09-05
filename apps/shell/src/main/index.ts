@@ -2825,12 +2825,10 @@ function statEntries(paths: string[]): RecentEntry[] {
 
 function registerHomeIpc(): void {
   ipcMain.handle(HOME_CHANNELS.accountStatus, async () => {
-    await proxyBootstrap
     return lightyuAccountStatus()
   })
 
   ipcMain.handle(HOME_CHANNELS.accountLogin, async (event) => {
-    await proxyBootstrap
     analytics.track('login_click')
     const sender = event.sender
     const send = (payload: AccountLoginEvent) => {
@@ -4063,9 +4061,6 @@ function installDockMenu(): void {
 // Prefer proxy env vars (terminal launch); a packaged app launched from Finder inherits no shell
 // env vars, so fall back to the system HTTP proxy. The renderer uses Chromium's system proxy and
 // is unaffected. Same bootstrap as slides-main startSlidesStandalone.
-// Awaited by account IPC so the first API request cannot race proxy resolution.
-let proxyBootstrap: Promise<void> = Promise.resolve()
-
 async function installMainProcessProxy(): Promise<void> {
   let proxyUrl = [
     process.env.HTTPS_PROXY,
@@ -4189,7 +4184,7 @@ app.whenReady().then(async () => {
     }
   }
 
-  proxyBootstrap = installMainProcessProxy()
+  void installMainProcessProxy()
   app.setAccessibilitySupportEnabled(true)
   // Settle the shared uiLang from saved settings BEFORE any tab renderer can
   // ask 'app:get-language': the editor handlers return the i18n module's
