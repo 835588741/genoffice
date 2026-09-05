@@ -104,13 +104,13 @@ export interface HomeApi {
   getUpdateChannel(): Promise<UpdateChannel>
   /** switch + persist the update channel; triggers an immediate update check */
   setUpdateChannel(channel: UpdateChannel): Promise<void>
-  /** Genspark account status (gsk login state; to be upgraded to a signup/account system later) */
+  /** Lightyu API account status (WeChat OAuth login). */
   accountStatus(): Promise<AccountStatus>
-  /** start Genspark login (opens the browser; accountStatus flips to logged-in on completion); returns whether the launch succeeded */
+  /** start the Lightyu WeChat QR login flow; returns whether the flow was launched */
   accountLogin(): Promise<boolean>
   /** progress events for the login started via accountLogin; returns an unsubscribe */
   onAccountLogin(handler: (ev: AccountLoginEvent) => void): () => void
-  /** re-open the pending login auth URL in the default browser (rescue when auto-open failed) */
+  /** show the hidden OAuth window when the user needs a fallback */
   openLoginUrl(): Promise<void>
   /** log out (clears the saved API key; the login state is shared globally with the gsk CLI) */
   accountLogout(): Promise<void>
@@ -204,16 +204,18 @@ export interface CloudProjectsSnapshot {
 }
 
 export interface AccountStatus {
-  /** gsk is installed and logged in */
+  /** a non-expired Lightyu API token is stored locally */
   loggedIn: boolean
+  nickname?: string
+  avatar?: string
   email?: string
-  /** remaining Genspark credits (absent when the balance query failed) */
-  creditBalance?: number
+  expiresAt?: number
 }
 
-/** login flow progress pushed from main (gsk login CLI output) */
+/** login flow progress pushed from main (Lightyu WeChat OAuth) */
 export interface AccountLoginEvent {
-  phase: 'launched' | 'url' | 'success' | 'error'
+  phase: 'qr' | 'scanned' | 'success' | 'error'
+  qrDataUrl?: string
   url?: string
   expiresInSec?: number
   /** 'network' | 'expired' | raw CLI error text */

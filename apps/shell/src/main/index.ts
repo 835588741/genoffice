@@ -81,15 +81,18 @@ import { handleDroppedFiles } from './dropped-files'
 import { ProjectStore } from '@genoffice/project-store'
 import {
   ensureGenofficeLogin,
-  genofficeLogout,
   gskConvertPdfToDocx,
   gskLoginInfo,
   hasGskAuth,
-  loadGenofficeAuth,
   resolveGskEntry,
   setGskProxyUrl,
-  startGenofficeLogin,
 } from '@genoffice/ai-search'
+import {
+  lightyuAccountStatus,
+  lightyuLogout,
+  openLightyuLoginWindow,
+  startLightyuLogin,
+} from './lightyu-auth'
 
 import {
   buildDocsMenu,
@@ -2821,51 +2824,31 @@ function statEntries(paths: string[]): RecentEntry[] {
 }
 
 function registerHomeIpc(): void {
-  // signed-in means GenOffice's own device-code login; the shared gsk CLI key
-  // is only a silent fallback, deliberately not shown here to nudge users onto our key
   ipcMain.handle(HOME_CHANNELS.accountStatus, async () => {
-    if (!loadGenofficeAuth()) return { loggedIn: false }
     await proxyBootstrap
-    const info = await gskLoginInfo()
-    return info
-      ? { loggedIn: true, email: info.email, creditBalance: info.creditBalance }
-      : { loggedIn: true }
+    return lightyuAccountStatus()
   })
 
-  // login progress is streamed to the requesting renderer; the auth URL is
-  // kept main-side so the "open manually" rescue never opens a renderer-supplied URL
-  let pendingLoginUrl = ''
   ipcMain.handle(HOME_CHANNELS.accountLogin, async (event) => {
+    await proxyBootstrap
     analytics.track('login_click')
     const sender = event.sender
-    pendingLoginUrl = ''
-    await proxyBootstrap
     const send = (payload: AccountLoginEvent) => {
       if (!sender.isDestroyed()) sender.send(HOME_CHANNELS.accountLoginEvent, payload)
     }
-    // open the browser on the first url event only; later events refresh the rescue URL
-    let opened = false
-    const launched = startGenofficeLogin((progress) => {
-      if (progress.url) {
-        pendingLoginUrl = progress.url
-        if (!opened) {
-          opened = true
-          void shell.openExternal(progress.url)
-        }
-      }
+    const launched = startLightyuLogin((progress) => {
       if (progress.phase === 'success') analytics.track('login_success')
       send(progress)
     })
-    if (launched) send({ phase: 'launched' })
     return launched
   })
 
   ipcMain.handle(HOME_CHANNELS.accountLoginOpenUrl, () => {
-    if (pendingLoginUrl) void shell.openExternal(pendingLoginUrl)
+    openLightyuLoginWindow()
   })
 
   ipcMain.handle(HOME_CHANNELS.accountLogout, async () => {
-    await genofficeLogout()
+    lightyuLogout()
     // the cloud projects cache belongs to the account that just signed out
     clearCloudProjectsStore(cloudProjectsStorePath())
   })
@@ -4080,7 +4063,7 @@ function installDockMenu(): void {
 // Prefer proxy env vars (terminal launch); a packaged app launched from Finder inherits no shell
 // env vars, so fall back to the system HTTP proxy. The renderer uses Chromium's system proxy and
 // is unaffected. Same bootstrap as slides-main startSlidesStandalone.
-// awaited by login IPC so the first status probe / login click cannot race the proxy resolution
+// Awaited by account IPC so the first API request cannot race proxy resolution.
 let proxyBootstrap: Promise<void> = Promise.resolve()
 
 async function installMainProcessProxy(): Promise<void> {
