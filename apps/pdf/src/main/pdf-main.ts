@@ -22,6 +22,7 @@ import {
   printHtmlToPdf,
   safeExternalUrl,
   showOpenDialogWithMemory,
+  showSaveDialogWithMemory,
 } from '@genoffice/electron-utils'
 import { createI18n, getUiLang } from '@genoffice/i18n'
 import { gskGenerateImage, hasGskAuth } from '@genoffice/ai-search'
@@ -561,6 +562,25 @@ export function markPdfUntitledPath(path: string): void {
   untitledPdfPaths.add(path)
 }
 
+export function pdfIsUntitled(contents: WebContents): boolean {
+  const path = openPathByWc.get(contents.id)
+  return path !== undefined && untitledPdfPaths.has(path)
+}
+
+/** Finish the first Save As of an app-owned temporary PDF before its old tab closes. */
+export function completePdfUntitledSaveAs(contents: WebContents): void {
+  const path = openPathByWc.get(contents.id)
+  if (!path || !untitledPdfPaths.delete(path)) return
+  dirtyByWc.delete(contents.id)
+  if (process.mas) {
+    try {
+      unlinkSync(path)
+    } catch {
+      // The temporary source may already have been removed during teardown.
+    }
+  }
+}
+
 export function setPdfRenamedHook(
   hook: (wc: WebContents, oldPath: string, newPath: string) => void,
 ): void {
@@ -712,6 +732,23 @@ export async function requestPdfClose(
       : await dialog.showMessageBox(options)
   if (response === 2) return false
   if (response === 1) return true
+  if (pdfIsUntitled(contents)) {
+    const sourcePath = openPathByWc.get(contents.id)
+    if (!sourcePath) return false
+    const picked = await showSaveDialogWithMemory(dialog, parent, {
+      defaultPath: basename(sourcePath),
+      filters: [{ name: tm('filterPdf'), extensions: ['pdf'] }],
+    })
+    if (picked.canceled || !picked.filePath) return false
+    setPdfSaveAsInFlight(contents, true)
+    try {
+      if (!(await requestPdfSaveAs(contents, picked.filePath))) return false
+      completePdfUntitledSaveAs(contents)
+      return true
+    } finally {
+      setPdfSaveAsInFlight(contents, false)
+    }
+  }
   return await requestRendererSave(contents)
 }
 
@@ -1428,6 +1465,14 @@ function grantAndTrack(wc: WebContents, openPath?: string | null): void {
     return { action: 'deny' }
   })
   wc.once('destroyed', () => {
+    const openPath = openPathByWc.get(wcId)
+    if (process.mas && openPath && untitledPdfPaths.delete(openPath)) {
+      try {
+        unlinkSync(openPath)
+      } catch {
+        // Best-effort cleanup of the app-owned working copy.
+      }
+    }
     openPathByWc.delete(wcId)
     allowedByWc.delete(wcId)
     dirtyByWc.delete(wcId)

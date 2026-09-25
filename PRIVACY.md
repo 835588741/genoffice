@@ -1,70 +1,104 @@
-# GenOffice Privacy
+# AiOffice Privacy Policy
 
-Last updated: August 26, 2026
+Last updated: September 25, 2026
 
-GenOffice opens, edits, and saves documents locally. Document editing does not
-upload files to GenOffice. AI features require a network connection and send
-requests only when you use them.
+AiOffice is provided by Shanghai Luanqing Network Technology Co., Ltd. This
+policy explains what data AiOffice processes, why it is processed, and the
+choices available to you.
+
+## Local document editing
+
+Opening, editing, and saving documents is performed locally on your device.
+AiOffice does not upload document content merely because a file is opened or
+edited. You can use the local editing features without enabling cloud AI.
+
+## Cloud AI features
+
+Cloud AI is optional. Before the first cloud AI request, AiOffice displays a
+separate consent prompt that identifies the data, recipients, and purpose. No
+AI request is sent unless you select **Agree and Continue**.
+
+When you invoke an AI feature, AiOffice may send the following data that you
+choose to provide:
+
+- your prompt or instruction
+- selected text, cells, slides, pages, or other relevant document content
+- document, spreadsheet, presentation, PDF, image, or attachment content
+  required to complete the request
+- technical request metadata such as the selected model, request identifier,
+  app version, and error information
+
+The data is sent over HTTPS to Lightyu API, operated by Shanghai Luanqing
+Network Technology Co., Ltd. Lightyu API routes the request to the AI model
+provider selected in AiOffice. The currently available providers are Zhipu AI
+and DeepSeek. These recipients process the content only to generate a response
+or perform the edit requested by the user, subject to their security and data
+protection obligations.
+
+If an AI task uses web or image search, the search terms may also be sent to
+Genspark, Google Serper, Tavily, or DuckDuckGo to retrieve relevant results.
+
+AiOffice's billing records contain request identifiers, model and usage data,
+charge status, and timestamps. They do not contain the prompt or document
+content. Request content is transmitted for processing and is not intentionally
+stored in AiOffice billing records. Model providers may process request data
+under their applicable service and privacy terms.
+
+You can decline the prompt and continue using local editing. You can withdraw
+consent at any time under **Settings > General > Allow cloud AI data
+processing**. After withdrawal, AiOffice asks again before any later AI request.
+
+## Account and purchases
+
+If you sign in, AiOffice stores the Lightyu API session credential in the
+operating system's protected credential storage and uses it to retrieve your
+account profile and AI credit balance. Apple in-app purchases send the product
+identifier, transaction identifier, and App Store receipt to Lightyu API for
+verification, fraud prevention, idempotent credit delivery, and customer
+support. Apple also processes purchase data under Apple's own policies.
 
 ## Usage analytics
 
-Usage analytics is enabled by default in packaged official builds, including
-the initial app launch before the onboarding notice is shown. Onboarding
-explains what is collected and where to turn it off.
+Packaged official builds can send product usage events to Google Analytics 4.
+You can disable this at any time under **Settings > General > Send anonymous
+usage statistics**.
 
-You can disable reporting at any time under **Settings → General → Send
-anonymous usage statistics**. An explicit opt-out is remembered and stops all
-subsequent analytics events.
+The app emits these events:
 
-### Events and parameters
+- `install_first_launch` — the first analytics-enabled use of a new installation
+- `app_launch` — an app launch
+- `file_open` — a local file was opened, including only its extension
+- `file_new` — a new local file was created, including only its document kind
+- `login_click` — the sign-in action was selected
+- `login_success` — sign-in completed
 
-When enabled, the app sends these events:
+Parameters can include app version, platform, operating system version, UI
+language, file extension or kind, an installation identifier, session
+identifier, and country code derived from the operating system locale.
+Analytics does not include document content, file names, file paths, prompts,
+account identity, or email address. Google receives normal HTTPS connection
+metadata, including the public IP address.
 
-- `install_first_launch` — marks the first analytics-enabled use of a newly
-  assigned anonymous `client_id`; used for retention cohorts
-- `app_launch` — no event-specific parameter
-- `file_open` — `ext`, the file extension such as `docx` or `xlsx`
-- `file_new` — `kind`, one of `docx`, `xlsx`, `pptx`, `md`, or `pdf`
-- `login_click` — no event-specific parameter
-- `login_success` — no event-specific parameter
+## Storage, security, and deletion
 
-Every event includes:
+Local preferences, consent choices, recent-file references, and local project
+history remain on the device until removed by the user or the app is uninstalled.
+Account, purchase, and billing records are retained only as needed to provide
+the service, prevent fraud, meet accounting obligations, and resolve disputes.
+AiOffice uses HTTPS in transit and access controls for service data.
 
-- `app_version`
-- `platform`
-- `os_version`
-- `ui_lang`
-- a per-process `session_id` derived from the process start time
-- `engagement_time_msec` with the fixed value `100`
+You can delete your account directly in AiOffice: sign in, open **Settings >
+Account**, select **Delete account**, and confirm the deletion. The app revokes
+desktop sessions, removes login identifiers and desktop AI credential bindings,
+clears pending desktop AI tasks, and anonymizes the account record. Local
+documents remain on your device and are not uploaded or deleted by this action.
+Required payment and transaction audit records may be retained without login
+credentials as required for accounting, fraud prevention, and dispute handling.
+For access or correction requests, contact Shanghai Luanqing Network Technology
+Co., Ltd. through https://5555api.com/#contact.
 
-When available, the payload also includes `country_id`, the two-letter country
-code from the operating system's regional locale. This can differ from the
-user's physical location.
+## Policy changes
 
-The Google Analytics 4 payload also uses a random install UUID as `client_id`.
-The country code is sent through GA4's country-only `user_location` field; the
-app does not send a city or region. Neither identifier is a Genspark account or
-email address.
-
-## Network information
-
-Events are sent to Google Analytics 4 using the Measurement Protocol over
-HTTPS. As the HTTPS recipient, Google necessarily sees the connection's public
-IP address and transport metadata, and may use them for coarse geolocation and
-security or spam-abuse processing. GenOffice does not add an IP address to the
-event payload.
-
-## Data not collected by analytics
-
-GenOffice analytics never sends:
-
-- document content
-- file names
-- file paths
-- Genspark account identity
-- email addresses
-
-The analytics metadata is injected only into packaged official builds and is
-not part of this repository. Source builds and forks without that packaged
-metadata install a no-op tracker and send no usage analytics; all features work
-the same.
+Material changes will be reflected by updating this policy and its date. If a
+change expands the data sent by cloud AI, AiOffice will require consent again
+before sending that data.

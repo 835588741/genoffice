@@ -1,7 +1,7 @@
 {
   "name": "@genoffice/shell",
-  "productName": "GenOffice",
-  "version": "0.8.0",
+  "productName": "AiOffice",
+  "version": "1.2.10",
   "license": "Apache-2.0",
   "homepage": "https://github.com/genspark-ai/genoffice",
   "private": true,
@@ -9,12 +9,14 @@
   "main": "out/main/index.js",
   "desktopName": "genoffice.desktop",
   "scripts": {
-    "dev": "electron-vite dev --watch",
+    "dev": "npm run build:native:auth && electron-vite dev --watch",
     "build": "electron-vite build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "start": "electron-vite build && electron .",
-    "dist:mac": "electron-vite build && electron-builder --mac",
+    "build:native:auth": "node scripts/build-auth-session.mjs",
+    "start": "npm run build:native:auth && electron-vite build && node scripts/start-macos-app.mjs",
+    "dist:mac": "npm run build:native:auth && electron-vite build && electron-builder --mac",
+    "dist:mas": "AIOFFICE_BUILD_MAS=1 npm run build:native:auth && electron-vite build && AIOFFICE_BUILD_MAS=1 electron-builder --mac mas --arm64",
     "dist:win": "electron-vite build && electron-builder --win",
     "dist:linux": "electron-vite build && electron-builder --linux"
   },
@@ -45,5 +47,5 @@
     "vite": "^7.3.1",
     "vitest": "^4.1.10"
   },
-  "author": "GenOffice"
+  "author": "AiOffice"
 }

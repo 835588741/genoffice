@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactElement } from 'react'
-import logoLockup from './assets/genoffice-logo.svg'
+import appIcon from './assets/app-icon.png'
 import iconDocx from './assets/file-docx.svg'
 import iconXlsx from './assets/file-xlsx.svg'
 import iconPptx from './assets/file-pptx.svg'
@@ -470,12 +470,10 @@ function AccountEntry({
   const [loginError, setLoginError] = useState<
     'timeout' | 'launch' | 'network' | 'expired' | 'failed' | null
   >(null)
-  // auth URL reported by the login CLI — rescue entry when the browser did not open
-  const [authUrl, setAuthUrl] = useState<string | null>(null)
-  const [urlCopied, setUrlCopied] = useState(false)
   const loginDeadline = useRef(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [deletingAccount, setDeletingAccount] = useState(false)
   // bumped on logout so an in-flight status refresh (which can still
   // report logged-in) is discarded instead of resurrecting the UI
   const statusSeq = useRef(0)
@@ -494,20 +492,15 @@ function AccountEntry({
   // login progress pushed from main (gsk login CLI output)
   useEffect(() => {
     const off = window.aiOffice.onAccountLogin?.((ev) => {
-      if (ev.phase === 'url') {
-        if (ev.url) setAuthUrl(ev.url)
-        if (ev.expiresInSec) loginDeadline.current = Date.now() + ev.expiresInSec * 1000
-      } else if (ev.phase === 'success') {
+      if (ev.phase === 'success') {
         void window.aiOffice.accountStatus().then((s) => {
           if (s.loggedIn) {
             setStatus(s)
             setWaiting(false)
-            setAuthUrl(null)
           }
         })
       } else if (ev.phase === 'error') {
         setWaiting(false)
-        setAuthUrl(null)
         setLoginError(
           ev.error === 'network' ? 'network' : ev.error === 'expired' ? 'expired' : 'failed',
         )
@@ -524,10 +517,8 @@ function AccountEntry({
         if (s.loggedIn) {
           setStatus(s)
           setWaiting(false)
-          setAuthUrl(null)
         } else if (Date.now() > loginDeadline.current) {
           setWaiting(false)
-          setAuthUrl(null)
           setLoginError('timeout')
         }
       })
@@ -536,8 +527,30 @@ function AccountEntry({
   }, [waiting, loginNonce])
 
   const loggedIn = status?.loggedIn ?? false
+  useEffect(() => {
+    if (!status?.loggedIn || !status.expiresAt) return
+    const expiresAt = status.expiresAt
+    const timer = setInterval(() => {
+      if (Date.now() >= expiresAt) {
+        clearInterval(timer)
+        setStatus({ loggedIn: false })
+        void window.aiOffice.accountStatus()
+      }
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [status?.loggedIn, status?.expiresAt])
   const email = status?.email ?? ''
-  const initial = email ? email[0].toUpperCase() : loggedIn ? 'G' : '?'
+  const nickname = status?.nickname ?? ''
+  const jindou = status?.jindou
+  const avatar = status?.avatar
+  const [avatarFailed, setAvatarFailed] = useState(false)
+  const identity = (nickname || email || (loggedIn ? 'G' : '?')).trim()
+  const initial = identity.charAt(0).toUpperCase() || '?'
+
+  useEffect(() => {
+    setAvatarFailed(false)
+  }, [avatar])
+
   const errorText = loginError
     ? {
         timeout: t('loginTimeout'),
@@ -557,15 +570,15 @@ function AccountEntry({
     })
   }
 
-  const startLogin = () => {
-    // clicking again while waiting = relaunch the login (main kills the stale CLI, so the new device code is the live one)
+  const startLogin = (provider: 'lightyu' | 'apple' = 'lightyu') => {
+    // Clicking again while waiting cancels the previous native auth session
+    // and starts a fresh one with a new PKCE state.
     setLoginError(null)
     setWaiting(true)
-    setAuthUrl(null)
-    setUrlCopied(false)
     loginDeadline.current = Date.now() + LOGIN_MAX_WAIT_MS
     setLoginNonce((n) => n + 1)
-    void window.aiOffice.accountLogin().then((launched) => {
+    const launch = provider === 'apple' ? window.aiOffice.accountAppleLogin() : window.aiOffice.accountLogin()
+    void launch.then((launched) => {
       if (!launched) {
         setWaiting(false)
         setLoginError('launch')
@@ -573,14 +586,22 @@ function AccountEntry({
     })
   }
 
-  const openLoginUrl = () => void window.aiOffice.openLoginUrl?.()
+  const loginWithEmail = async (account: string, code: string) => {
+    await window.aiOffice.accountEmailLogin(account, code)
+    const next = await window.aiOffice.accountStatus()
+    setStatus(next)
+  }
 
-  const copyLoginUrl = () => {
-    if (!authUrl) return
-    void navigator.clipboard.writeText(authUrl).then(() => {
-      setUrlCopied(true)
-      window.setTimeout(() => setUrlCopied(false), 2000)
-    })
+  const deleteAccount = async () => {
+    setDeletingAccount(true)
+    try {
+      await window.aiOffice.accountDelete()
+      statusSeq.current++
+      setStatus({ loggedIn: false })
+      setSettingsOpen(false)
+    } finally {
+      setDeletingAccount(false)
+    }
   }
 
   const handleClick = () => {
@@ -599,63 +620,18 @@ function AccountEntry({
         <SettingsModal
           status={status}
           loggingOut={loggingOut}
+          deletingAccount={deletingAccount}
           loginWaiting={waiting}
-          loginUrl={authUrl}
-          urlCopied={urlCopied}
-          onOpenLoginUrl={openLoginUrl}
-          onCopyLoginUrl={copyLoginUrl}
           onClose={() => setSettingsOpen(false)}
           onLogin={() => {
-            startLogin()
+            startLogin('lightyu')
           }}
+          onAppleLogin={() => startLogin('apple')}
+          onEmailSendCode={(account) => window.aiOffice.accountSendEmailCode(account)}
+          onEmailLogin={loginWithEmail}
           onLogout={doLogout}
+          onDeleteAccount={deleteAccount}
         />
-      )}
-      {!settingsOpen && waiting && authUrl && (
-        <div className="login-hint" role="status">
-          <button className="login-hint-open" onClick={openLoginUrl}>
-            {t('loginOpenShort')}
-          </button>
-          <button
-            className={`login-hint-copy${urlCopied ? ' copied' : ''}`}
-            onClick={copyLoginUrl}
-            // static tip: screentips are suppressed from pointerdown until the pointer
-            // leaves the control, so a swapped-in "copied" tip would never show — the
-            // check-mark icon is the visible feedback
-            data-tip={t('loginCopyUrl')}
-            aria-label={urlCopied ? t('loginCopied') : t('loginCopyUrl')}
-          >
-            {urlCopied ? (
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="m3.5 8.5 3 3 6-7"
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            ) : (
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <rect
-                  x="5.5"
-                  y="5.5"
-                  width="7"
-                  height="7"
-                  rx="1.5"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                />
-                <path
-                  d="M3.5 10.5V5a1.5 1.5 0 0 1 1.5-1.5h5.5"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinecap="round"
-                />
-              </svg>
-            )}
-          </button>
-        </div>
       )}
       <button
         className="account-btn"
@@ -664,7 +640,7 @@ function AccountEntry({
         aria-expanded={settingsOpen}
         data-tip={
           loggedIn
-            ? email || t('loggedInGenspark')
+            ? nickname || email || t('loggedInGenspark')
             : waiting
               ? t('waitingLogin')
               : (errorText ?? t('loginGenspark'))
@@ -694,6 +670,13 @@ function AccountEntry({
                 strokeLinecap="round"
               />
             </svg>
+          ) : loggedIn && avatar && !avatarFailed ? (
+            <img
+              className="account-avatar-image"
+              src={avatar}
+              alt=""
+              onError={() => setAvatarFailed(true)}
+            />
           ) : (
             initial
           )}
@@ -701,15 +684,17 @@ function AccountEntry({
         <span className="account-text">
           <span className="account-name">
             {loggedIn
-              ? email
-                ? email.split('@')[0]
-                : t('loggedIn')
+              ? nickname || (email ? email.split('@')[0] : t('account'))
               : waiting
                 ? t('waitingShort')
                 : t('login')}
           </span>
-          {!loggedIn && !waiting && errorText && (
-            <span className="account-sub error">{errorText}</span>
+          {loggedIn ? (
+            <span className="account-sub">
+              金豆 {typeof jindou === 'number' ? String(jindou) : '0'}
+            </span>
+          ) : (
+            !waiting && errorText && <span className="account-sub error">{errorText}</span>
           )}
         </span>
         <svg
@@ -1133,8 +1118,6 @@ export function Home() {
   const [navCounts, setNavCounts] = useState({ recent: 0, starred: 0 })
   const [loadingMore, setLoadingMore] = useState(false)
   const [view, setView] = useState<'recent' | 'starred'>('recent')
-  // Genspark web projects take over the content area (like a selected project)
-  const [cloudMode, setCloudMode] = useState(false)
   const [filter, setFilter] = useState('all')
   // modified-column sort (WPS-style header popover), shared by the global and project tables
   const [fileSort, setFileSort] = useState<'recent' | 'oldest'>('recent')
@@ -1150,14 +1133,10 @@ export function Home() {
   const [confirmMissing, setConfirmMissing] = useState<RecentEntry | null>(null)
   // name in the greeting; omitted when logged out
   const [accountName, setAccountName] = useState('')
-  // Genspark Projects is web-account data, so its nav entry only shows when logged in
-  const [loggedIn, setLoggedIn] = useState(false)
-  // single source of account state: AccountEntry reports every change (initial
-  // load, login, logout), keeping the greeting name and the nav entry in sync
+  // AccountEntry reports every change (initial load, login, logout), keeping
+  // the greeting name in sync.
   const handleAccountStatus = useCallback((s: AccountStatus | null) => {
     const on = s?.loggedIn ?? false
-    setLoggedIn(on)
-    if (!on) setCloudMode(false)
     const name = on ? (s?.email ?? '').split('@')[0] : ''
     setAccountName(name ? name[0].toUpperCase() + name.slice(1) : '')
   }, [])
@@ -2105,16 +2084,16 @@ export function Home() {
     <div className="home">
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <img className="logo-lockup" src={logoLockup} alt="GenOffice" />
+          <img className="logo-mark" src={appIcon} alt="" />
+          <span className="logo-wordmark">AiOffice</span>
         </div>
 
         <nav className="sidebar-nav">
           <button
-            className={`nav-item${view === 'recent' && !selectedProjectId && !cloudMode ? ' active' : ''}`}
+            className={`nav-item${view === 'recent' && !selectedProjectId ? ' active' : ''}`}
             onClick={() => {
               changeView('recent')
               setSelectedProjectId(null)
-              setCloudMode(false)
             }}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -2130,11 +2109,10 @@ export function Home() {
             <span className="nav-count">{navCounts.recent}</span>
           </button>
           <button
-            className={`nav-item${view === 'starred' && !selectedProjectId && !cloudMode ? ' active' : ''}`}
+            className={`nav-item${view === 'starred' && !selectedProjectId ? ' active' : ''}`}
             onClick={() => {
               changeView('starred')
               setSelectedProjectId(null)
-              setCloudMode(false)
             }}
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -2148,43 +2126,6 @@ export function Home() {
             <span className="nav-label">{t('navStarred')}</span>
             <span className="nav-count">{navCounts.starred}</span>
           </button>
-          {loggedIn && (
-            <button
-              className={`nav-item${cloudMode && !selectedProjectId ? ' active' : ''}`}
-              onClick={() => {
-                setCloudMode(true)
-                setSelectedProjectId(null)
-                setSelected(new Set())
-                setRowMenu(null)
-              }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                <path
-                  d="M8 1.8l1.55 4.65L14.2 8l-4.65 1.55L8 14.2 6.45 9.55 1.8 8l4.65-1.55z"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span className="nav-label">{t('navCloud')}</span>
-              <svg
-                className="nav-external"
-                width="13"
-                height="13"
-                viewBox="0 0 16 16"
-                fill="none"
-                aria-hidden="true"
-              >
-                <path
-                  d="M6.5 3.5H4a1.5 1.5 0 0 0-1.5 1.5v7A1.5 1.5 0 0 0 4 13.5h7A1.5 1.5 0 0 0 12.5 12V9.5M9.5 2.5h4v4M13 3l-5.5 5.5"
-                  stroke="currentColor"
-                  strokeWidth="1.3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          )}
         </nav>
 
         {/* project sidebar */}
@@ -2209,13 +2150,7 @@ export function Home() {
         <AccountEntry onStatusChange={handleAccountStatus} />
       </aside>
 
-      {selectedProjectId ? (
-        renderProjectContent()
-      ) : cloudMode ? (
-        <CloudProjectsView />
-      ) : (
-        renderGlobalContent()
-      )}
+      {selectedProjectId ? renderProjectContent() : renderGlobalContent()}
 
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>

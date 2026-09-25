@@ -104,16 +104,22 @@ export interface HomeApi {
   getUpdateChannel(): Promise<UpdateChannel>
   /** switch + persist the update channel; triggers an immediate update check */
   setUpdateChannel(channel: UpdateChannel): Promise<void>
-  /** Genspark account status (gsk login state; to be upgraded to a signup/account system later) */
+  /** Lightyu account status for the native sign-in flow. */
   accountStatus(): Promise<AccountStatus>
-  /** start Genspark login (opens the browser; accountStatus flips to logged-in on completion); returns whether the launch succeeded */
+  /** start sign-in in the macOS system authentication session; returns whether it launched */
   accountLogin(): Promise<boolean>
+  /** start Apple sign-in in the macOS system authentication session */
+  accountAppleLogin(): Promise<boolean>
   /** progress events for the login started via accountLogin; returns an unsubscribe */
   onAccountLogin(handler: (ev: AccountLoginEvent) => void): () => void
-  /** re-open the pending login auth URL in the default browser (rescue when auto-open failed) */
-  openLoginUrl(): Promise<void>
-  /** log out (clears the saved API key; the login state is shared globally with the gsk CLI) */
+  /** send an email verification code without exposing the API token to the renderer */
+  accountSendEmailCode(account: string): Promise<void>
+  /** sign in or register with an email verification code */
+  accountEmailLogin(account: string, code: string): Promise<void>
+  /** log out the saved Lightyu account session */
   accountLogout(): Promise<void>
+  /** permanently delete the remote account and revoke its sessions */
+  accountDelete(): Promise<void>
   /** app version (from package.json / electron app.getVersion) */
   getAppVersion(): Promise<string>
   /** whether the first-run onboarding has been completed or skipped (persisted in userData/app-settings.json) */
@@ -124,11 +130,15 @@ export interface HomeApi {
   getTheme(): Promise<UiTheme>
   /** switch + persist the UI theme; broadcasts 'app:theme-changed' to all web contents */
   setTheme(theme: UiTheme): Promise<void>
-  /** whether anonymous usage statistics are enabled (default true in official builds) */
+  /** whether anonymous usage statistics are enabled (default false until opt-in) */
   getAnalyticsEnabled(): Promise<boolean>
   /** persist an explicit analytics opt-in or opt-out */
   setAnalyticsEnabled(enabled: boolean): Promise<boolean>
-  /** effective default save folder for new/untitled files (configured in userData/app-settings.json, falls back to <Documents>/GenOffice) */
+  /** whether the user has explicitly allowed cloud AI data sharing */
+  getAiDataSharingConsent(): Promise<boolean>
+  /** withdraw the saved AI data-sharing consent; granting only happens in the disclosure prompt */
+  revokeAiDataSharingConsent(): Promise<boolean>
+  /** effective default save folder for new/untitled files (configured in userData/app-settings.json, falls back to <Documents>/AiOffice) */
   getDefaultSaveDir(): Promise<string>
   /** directory picker to change the default save folder; resolves to the new folder, or null when canceled or the pick was unusable */
   pickDefaultSaveDir(): Promise<string | null>
@@ -140,6 +150,10 @@ export interface HomeApi {
   openCreditUsage(): Promise<void>
   /** open the public GitHub repository in the default browser */
   openGitHubRepo(): Promise<void>
+  /** open the Lightyu API website in the default browser */
+  openLightyuWebsite(): Promise<void>
+  /** open the Lightyu API recharge flow in the default browser */
+  openLightyuRecharge(): Promise<void>
   /** current stargazer count of the public repo (null while offline / rate-limited) */
   githubStars(): Promise<number | null>
   /** whether the one-time "star us" prompt should show now (show:true also counts as shown);
@@ -161,11 +175,42 @@ export interface HomeApi {
   getAiProviders(): AiCatalogEntry[]
   /** one-shot round trip against the given (possibly unsaved) settings — the settings-UI connection test */
   testAiSettings(settings: AiSettings): Promise<AiChatResponse>
+  /** AI models published by the Lightyu gateway. No provider credentials are exposed. */
+  desktopAiModels(): Promise<DesktopAiModel[]>
+  /** Customer-facing AI usage billed in gold beans. */
+  desktopAiBilling(limit?: number): Promise<DesktopAiBillingRecord[]>
+  /** Apple in-app purchase catalog (macOS only). */
+  appleIapAvailable(): Promise<boolean>
+  appleIapProducts(): Promise<AppleIapProduct[]>
+  /** Start the Apple consumable purchase flow for a catalog product. */
+  appleIapPurchase(productId?: string): Promise<{ started: boolean; error?: string }>
+  /** Restore pending/completed Apple transactions. */
+  appleIapRestore(): Promise<void>
+  /** Apple purchase transaction events from the main process. */
+  onAppleIapEvent(handler: (event: AppleIapEvent) => void): () => void
 }
 
 export interface AiCatalogEntry extends AiProviderMeta {
   /** default endpoint for fixed-endpoint providers ('' = model-dependent or user-supplied) */
   defaultBaseUrl: string
+}
+
+export interface DesktopAiModel {
+  id: string
+  name: string
+}
+
+export interface DesktopAiBillingRecord {
+  request_id: string
+  model: string
+  input_tokens: number | null
+  output_tokens: number | null
+  cost_usd: string | null
+  jindou: number | null
+  status: 'PENDING' | 'SETTLED' | 'FAILED' | string
+  error_message: string | null
+  create_time: string
+  settled_time: string | null
 }
 
 /** 'starred' = went to GitHub or said "already starred" (never prompt again);
@@ -209,15 +254,34 @@ export interface AccountStatus {
   nickname?: string
   avatar?: string
   email?: string
+  jindou?: number
   expiresAt?: number
 }
 
+export interface AppleIapProduct {
+  id: string
+  title: string
+  description: string
+  formattedPrice: string
+  price: number
+  currencyCode: string
+  beans: number
+}
+
+export type AppleIapEvent =
+  | { phase: 'purchasing' | 'deferred'; productId: string }
+  | {
+      phase: 'success'
+      productId: string
+      transactionId: string
+      beansAdded: number
+      balance: number
+    }
+  | { phase: 'failed'; productId: string; error: string }
+
 /** login flow progress pushed from main (gsk login CLI output) */
 export interface AccountLoginEvent {
-  phase: 'launched' | 'url' | 'success' | 'error'
-  url?: string
-  expiresInSec?: number
-  /** 'network' | 'expired' | raw CLI error text */
+  phase: 'launched' | 'success' | 'error'
   error?: string
 }
 
@@ -291,9 +355,12 @@ export const HOME_CHANNELS = {
   setUpdateChannel: 'home:set-update-channel',
   accountStatus: 'home:account-status',
   accountLogin: 'home:account-login',
+  accountAppleLogin: 'home:account-apple-login',
   accountLoginEvent: 'home:account-login-event',
-  accountLoginOpenUrl: 'home:account-login-open-url',
+  accountSendEmailCode: 'home:account-send-email-code',
+  accountEmailLogin: 'home:account-email-login',
   accountLogout: 'home:account-logout',
+  accountDelete: 'home:account-delete',
   getAppVersion: 'home:get-app-version',
   onboardingSeen: 'home:onboarding-seen',
   setOnboardingSeen: 'home:set-onboarding-seen',
@@ -306,6 +373,9 @@ export const HOME_CHANNELS = {
   openGenTeam: 'home:open-genteam',
   openCreditUsage: 'home:open-credit-usage',
   openGitHubRepo: 'home:open-github-repo',
+  openLightyuWebsite: 'home:open-lightyu-website',
+  openLightyuRecharge: 'home:open-lightyu-recharge',
+  appleIapEvent: 'home:apple-iap-event',
   githubStars: 'home:github-stars',
   starPromptShouldShow: 'home:star-prompt-should-show',
   starPromptAction: 'home:star-prompt-action',

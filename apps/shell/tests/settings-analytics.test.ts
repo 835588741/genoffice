@@ -36,7 +36,7 @@ async function click(button: HTMLButtonElement): Promise<void> {
 }
 
 describe('Settings analytics consent', () => {
-  it('starts on and changes only after persistence succeeds', async () => {
+  it('starts off and changes only after persistence succeeds', async () => {
     const persist = vi
       .fn<(enabled: boolean) => Promise<boolean>>()
       .mockResolvedValueOnce(false)
@@ -44,7 +44,7 @@ describe('Settings analytics consent', () => {
     window.aiOffice = {
       getTheme: async () => 'system',
       getDefaultSaveDir: async () => '',
-      getAnalyticsEnabled: async () => true,
+      getAnalyticsEnabled: async () => false,
       setAnalyticsEnabled: persist,
       getUpdateChannel: async () => 'stable',
       getAppVersion: async () => '1.0.0',
@@ -60,13 +60,14 @@ describe('Settings analytics consent', () => {
             status: null,
             loggingOut: false,
             loginWaiting: false,
-            loginUrl: null,
-            urlCopied: false,
-            onOpenLoginUrl: vi.fn(),
-            onCopyLoginUrl: vi.fn(),
             onClose: vi.fn(),
             onLogin: vi.fn(),
+            onAppleLogin: vi.fn(),
+            onEmailSendCode: vi.fn().mockResolvedValue(undefined),
+            onEmailLogin: vi.fn().mockResolvedValue(undefined),
             onLogout: vi.fn(),
+            onDeleteAccount: vi.fn().mockResolvedValue(undefined),
+            deletingAccount: false,
           }),
         ),
       )
@@ -80,13 +81,13 @@ describe('Settings analytics consent', () => {
     await click(general!)
 
     const consent = host.querySelector<HTMLButtonElement>('.set-switch')
-    expect(consent?.getAttribute('aria-checked')).toBe('true')
-
-    await click(consent!)
-    expect(persist).toHaveBeenLastCalledWith(false)
-    expect(consent?.getAttribute('aria-checked')).toBe('true')
-
-    await click(consent!)
     expect(consent?.getAttribute('aria-checked')).toBe('false')
+
+    await click(consent!)
+    expect(persist).toHaveBeenLastCalledWith(true)
+    expect(consent?.getAttribute('aria-checked')).toBe('false')
+
+    await click(consent!)
+    expect(consent?.getAttribute('aria-checked')).toBe('true')
   })
 })

@@ -59,6 +59,19 @@ const fontCdnUrl = normalizeHttpsBaseUrl(
 // alias) keys off which dmgs exist, so flipping this flag is the single
 // switch.
 const includeMacX64 = process.env.GENOFFICE_MAC_X64 === '1'
+// Mac App Store builds are separate from the public DMG/ZIP release path.
+// Enable only when the App ID-specific provisioning profile is present. This
+// keeps local and public builds from accidentally becoming sandboxed MAS apps.
+const buildMacAppStore = process.env.AIOFFICE_BUILD_MAS === '1'
+const masProvisioningProfile = process.env.AIOFFICE_MAS_PROVISIONING_PROFILE
+// App Store Connect requires every uploaded build number to be unique, while
+// a rejected version can be updated without changing its marketing version.
+// Keep the package version as the marketing version and allow release jobs to
+// advance only CFBundleVersion for a resubmission.
+const buildVersion = process.env.AIOFFICE_BUILD_NUMBER?.trim() || undefined
+if (buildMacAppStore && !masProvisioningProfile) {
+  throw new Error('AIOFFICE_MAS_PROVISIONING_PROFILE is required when AIOFFICE_BUILD_MAS=1')
+}
 
 // The gsk CLI tree below is copied verbatim from node_modules, and the
 // nested commander path depends on npm's current hoisting layout — fail the
@@ -134,6 +147,36 @@ if (process.platform === 'win32' && !existsSync(join(__dirname, WIN_OCR_HELPER))
   } catch (err) {
     throw new Error(`win-ocr helper compile failed: ${err}`, { cause: err })
   }
+}
+
+// ASWebAuthenticationSession is hosted by a tiny native process so MAS builds
+// can keep the account sign-in inside Apple's authentication session rather
+// than opening an arbitrary external browser URL from Electron.
+const AUTH_SESSION_HELPER = 'native/auth-session'
+function authSessionHelperIsUniversal() {
+  const helper = join(__dirname, AUTH_SESSION_HELPER)
+  if (!existsSync(helper)) return false
+  try {
+    const archs = execFileSync('lipo', ['-archs', helper], { encoding: 'utf8' })
+      .trim()
+      .split(/\s+/)
+    return archs.includes('arm64') && archs.includes('x86_64')
+  } catch {
+    return false
+  }
+}
+
+if (process.platform === 'darwin' && !authSessionHelperIsUniversal()) {
+  try {
+    execFileSync(process.execPath, [join(__dirname, 'scripts/build-auth-session.mjs')], {
+      stdio: 'inherit',
+    })
+  } catch (err) {
+    throw new Error(`authentication helper compile failed: ${err}`, { cause: err })
+  }
+}
+if (process.platform === 'darwin' && !existsSync(join(__dirname, AUTH_SESSION_HELPER))) {
+  throw new Error(`electron-builder extraResources source missing: ${AUTH_SESSION_HELPER}`)
 }
 
 // Dual-arch packs share one extraResources path, so the shipped helper must be
@@ -212,8 +255,9 @@ function assertModuleTreesPresent() {
 
 /** @type {import('electron-builder').Configuration} */
 const config = {
-  appId: 'com.genoffice.app',
-  productName: 'GenOffice',
+  appId: 'net.luanqing.aioffice',
+  productName: 'AiOffice',
+  ...(buildVersion ? { buildVersion } : {}),
   // Resolved from the installed electron package so dependency bumps can
   // never leave a stale hard-coded pin behind (packaging would silently ship
   // the old runtime).
@@ -283,6 +327,10 @@ const config = {
     {
       from: '../../node_modules/ws',
       to: 'gsk/node_modules/ws',
+    },
+    {
+      from: AUTH_SESSION_HELPER,
+      to: AUTH_SESSION_HELPER,
     },
   ],
   // `mimeType` is read only by the Linux target, where it becomes the
@@ -375,6 +423,11 @@ const config = {
       { target: 'zip', arch: includeMacX64 ? ['arm64', 'x64'] : ['arm64'] },
     ],
     category: 'public.app-category.productivity',
+    // AiOffice only uses exempt encryption supplied by macOS/Electron
+    // (HTTPS/TLS, Keychain, and Sign in with Apple).
+    extendInfo: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
     hardenedRuntime: true,
     gatekeeperAssess: false,
     entitlements: 'build/entitlements.mac.plist',
@@ -387,6 +440,17 @@ const config = {
       },
     ],
   },
+  // TestFlight/Mac App Store package. MAS signing requires a profile created
+  // for net.luanqing.aioffice; it cannot reuse an iOS profile for another app.
+  mas: buildMacAppStore
+    ? {
+        provisioningProfile: masProvisioningProfile,
+        entitlements: 'build/entitlements.mas.plist',
+        entitlementsInherit: 'build/entitlements.mas.inherit.plist',
+        hardenedRuntime: false,
+        notarize: false,
+      }
+    : undefined,
   win: {
     target: [
       {

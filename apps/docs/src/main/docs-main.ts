@@ -215,7 +215,7 @@ const tMain = createI18n({
     menuWindow: '窗口',
     menuHelp: '帮助',
     menuShortcuts: '键盘快捷键',
-    menuDocsHelp: 'GenOffice Docs 帮助',
+    menuDocsHelp: 'AiOffice Docs 帮助',
   },
   en: {
     dlgOpenDoc: 'Open Document',
@@ -310,7 +310,7 @@ const tMain = createI18n({
     menuWindow: 'Window',
     menuHelp: 'Help',
     menuShortcuts: 'Keyboard Shortcuts',
-    menuDocsHelp: 'GenOffice Docs Help',
+    menuDocsHelp: 'AiOffice Docs Help',
   },
   ja: {
     dlgOpenDoc: '文書を開く',
@@ -405,7 +405,7 @@ const tMain = createI18n({
     menuWindow: 'ウィンドウ',
     menuHelp: 'ヘルプ',
     menuShortcuts: 'キーボードショートカット',
-    menuDocsHelp: 'GenOffice Docs ヘルプ',
+    menuDocsHelp: 'AiOffice Docs ヘルプ',
   },
   ko: {
     dlgOpenDoc: '문서 열기',
@@ -501,7 +501,7 @@ const tMain = createI18n({
     menuWindow: '창',
     menuHelp: '도움말',
     menuShortcuts: '키보드 바로 가기',
-    menuDocsHelp: 'GenOffice Docs 도움말',
+    menuDocsHelp: 'AiOffice Docs 도움말',
   },
   fr: {
     dlgOpenDoc: 'Ouvrir un document',
@@ -598,7 +598,7 @@ const tMain = createI18n({
     menuWindow: 'Fenêtre',
     menuHelp: 'Aide',
     menuShortcuts: 'Raccourcis clavier',
-    menuDocsHelp: 'Aide GenOffice Docs',
+    menuDocsHelp: 'Aide AiOffice Docs',
   },
   de: {
     dlgOpenDoc: 'Dokument öffnen',
@@ -695,7 +695,7 @@ const tMain = createI18n({
     menuWindow: 'Fenster',
     menuHelp: 'Hilfe',
     menuShortcuts: 'Tastenkombinationen',
-    menuDocsHelp: 'GenOffice Docs-Hilfe',
+    menuDocsHelp: 'AiOffice Docs-Hilfe',
   },
   es: {
     dlgOpenDoc: 'Abrir documento',
@@ -792,7 +792,7 @@ const tMain = createI18n({
     menuWindow: 'Ventana',
     menuHelp: 'Ayuda',
     menuShortcuts: 'Atajos de teclado',
-    menuDocsHelp: 'Ayuda de GenOffice Docs',
+    menuDocsHelp: 'Ayuda de AiOffice Docs',
   },
   th: {
     dlgOpenDoc: 'เปิดเอกสาร',
@@ -887,7 +887,7 @@ const tMain = createI18n({
     menuWindow: 'หน้าต่าง',
     menuHelp: 'วิธีใช้',
     menuShortcuts: 'แป้นพิมพ์ลัด',
-    menuDocsHelp: 'วิธีใช้ GenOffice Docs',
+    menuDocsHelp: 'วิธีใช้ AiOffice Docs',
   },
   id: {
     dlgOpenDoc: 'Buka Dokumen',
@@ -982,7 +982,7 @@ const tMain = createI18n({
     menuWindow: 'Jendela',
     menuHelp: 'Bantuan',
     menuShortcuts: 'Pintasan Papan Ketik',
-    menuDocsHelp: 'Bantuan GenOffice Docs',
+    menuDocsHelp: 'Bantuan AiOffice Docs',
   },
   ru: {
     dlgOpenDoc: 'Открыть документ',
@@ -1078,7 +1078,7 @@ const tMain = createI18n({
     menuWindow: 'Окно',
     menuHelp: 'Справка',
     menuShortcuts: 'Сочетания клавиш',
-    menuDocsHelp: 'Справка GenOffice Docs',
+    menuDocsHelp: 'Справка AiOffice Docs',
   },
   ar: {
     dlgOpenDoc: 'فتح مستند',
@@ -1174,7 +1174,7 @@ const tMain = createI18n({
     menuWindow: 'نافذة',
     menuHelp: 'تعليمات',
     menuShortcuts: 'اختصارات لوحة المفاتيح',
-    menuDocsHelp: 'تعليمات GenOffice Docs',
+    menuDocsHelp: 'تعليمات AiOffice Docs',
   },
   pt: {
     dlgOpenDoc: 'Abrir Documento',
@@ -1270,7 +1270,7 @@ const tMain = createI18n({
     menuWindow: 'Janela',
     menuHelp: 'Ajuda',
     menuShortcuts: 'Atalhos de Teclado',
-    menuDocsHelp: 'Ajuda do GenOffice Docs',
+    menuDocsHelp: 'Ajuda do AiOffice Docs',
   },
   it: {
     dlgOpenDoc: 'Apri documento',
@@ -1366,7 +1366,7 @@ const tMain = createI18n({
     menuWindow: 'Finestra',
     menuHelp: 'Aiuto',
     menuShortcuts: 'Scelte rapide da tastiera',
-    menuDocsHelp: 'Guida di GenOffice Docs',
+    menuDocsHelp: 'Guida di AiOffice Docs',
   },
   pl: {
     dlgOpenDoc: 'Otwórz dokument',
@@ -1462,7 +1462,7 @@ const tMain = createI18n({
     menuWindow: 'Okno',
     menuHelp: 'Pomoc',
     menuShortcuts: 'Skróty klawiaturowe',
-    menuDocsHelp: 'Pomoc GenOffice Docs',
+    menuDocsHelp: 'Pomoc AiOffice Docs',
   },
   nl: {
     dlgOpenDoc: 'Document openen',
@@ -1558,7 +1558,7 @@ const tMain = createI18n({
     menuWindow: 'Venster',
     menuHelp: 'Help',
     menuShortcuts: 'Sneltoetsen',
-    menuDocsHelp: 'GenOffice Docs Help',
+    menuDocsHelp: 'AiOffice Docs Help',
   },
   ms: {
     dlgOpenDoc: 'Buka Dokumen',
@@ -1654,7 +1654,7 @@ const tMain = createI18n({
     menuWindow: 'Tetingkap',
     menuHelp: 'Bantuan',
     menuShortcuts: 'Pintasan Papan Kekunci',
-    menuDocsHelp: 'Bantuan GenOffice Docs',
+    menuDocsHelp: 'Bantuan AiOffice Docs',
   },
   he: {
     dlgOpenDoc: 'פתיחת מסמך',
@@ -1748,7 +1748,7 @@ const tMain = createI18n({
     menuWindow: 'חלון',
     menuHelp: 'עזרה',
     menuShortcuts: 'קיצורי מקלדת',
-    menuDocsHelp: 'עזרה של GenOffice Docs',
+    menuDocsHelp: 'עזרה של AiOffice Docs',
   },
   hi: {
     dlgOpenDoc: 'दस्तावेज़ खोलें',
@@ -1844,7 +1844,7 @@ const tMain = createI18n({
     menuWindow: 'विंडो',
     menuHelp: 'सहायता',
     menuShortcuts: 'कीबोर्ड शॉर्टकट',
-    menuDocsHelp: 'GenOffice Docs सहायता',
+    menuDocsHelp: 'AiOffice Docs सहायता',
   },
   'zh-TW': {
     dlgOpenDoc: '開啟文件',
@@ -1937,7 +1937,7 @@ const tMain = createI18n({
     menuWindow: '視窗',
     menuHelp: '說明',
     menuShortcuts: '鍵盤快速鍵',
-    menuDocsHelp: 'GenOffice Docs 說明',
+    menuDocsHelp: 'AiOffice Docs 說明',
   },
 })
 const tm = (key: Parameters<typeof tMain>[1], params?: Parameters<typeof tMain>[2]) =>
@@ -2571,7 +2571,7 @@ function savePastedImage(data: unknown, ext: unknown): string | null {
         ? Buffer.from(data.buffer, data.byteOffset, data.byteLength)
         : null
   if (!bytes || bytes.byteLength === 0) return null
-  const dir = join(app.getPath('temp'), 'genoffice-pasted')
+  const dir = join(app.getPath('temp'), 'aioffice-pasted')
   mkdirSync(dir, { recursive: true })
   prunePastedImages(dir)
   const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')
@@ -2609,6 +2609,234 @@ const TWIPS_PER_INCH = 1440
 // implementations live in @genoffice/ai-provider, shared with apps/sheets.
 
 const SETTINGS_PATH = () => userDataPath('ai-settings.json')
+const AI_DATA_CONSENT_PATH = () => userDataPath('ai-data-sharing-consent.json')
+const AI_DATA_CONSENT_VERSION = 1
+const AI_PRIVACY_URL = 'https://5555api.com/privacy.html'
+const LIGHTYU_AI_BASE_URL = 'https://5555api.com/data/desktop/ai'
+const DESKTOP_MODEL_IDS = new Set(['glm-5.3-flash', 'deepseek-v4-flash-vision-exp'])
+const FIXED_DESKTOP_MODELS = [
+  { id: 'glm-5.3-flash', name: '智普模型', capabilities: ['文本'] },
+  { id: 'deepseek-v4-flash-vision-exp', name: 'DeepSeek模型', capabilities: ['文本', '图片'] },
+] as const
+
+function normalizeDesktopModelId(model: string): string {
+  return model === 'deepseek-v4-flash' ? 'deepseek-v4-flash-vision-exp' : model
+}
+
+interface AiGatewayRuntime {
+  /** This callback is supplied by AiOffice's Electron main process only. */
+  accessToken: () => string | null
+  /** Starts the AiOffice authorization flow when the renderer asks to sign in. */
+  startLogin?: () => void
+  /** Reports the AiOffice authorization state to the shared AI panel. */
+  isLoggedIn?: () => boolean
+}
+
+let aiGatewayRuntime: AiGatewayRuntime | null = null
+let aiDataConsentPrompt: Promise<boolean> | null = null
+
+export function hasAiDataSharingConsent(): boolean {
+  const stored = readJson<{ granted?: unknown; version?: unknown }>(AI_DATA_CONSENT_PATH(), {})
+  return stored.granted === true && stored.version === AI_DATA_CONSENT_VERSION
+}
+
+export function setAiDataSharingConsent(granted: boolean): boolean {
+  writeJson(AI_DATA_CONSENT_PATH(), {
+    granted,
+    version: AI_DATA_CONSENT_VERSION,
+    updatedAt: new Date().toISOString(),
+  })
+  return hasAiDataSharingConsent() === granted
+}
+
+async function promptForAiDataSharingConsent(sender: WebContents): Promise<boolean> {
+  if (hasAiDataSharingConsent()) return true
+  if (aiDataConsentPrompt) return aiDataConsentPrompt
+
+  aiDataConsentPrompt = (async () => {
+    const zh = getUiLang() === 'zh' || getUiLang() === 'zh-TW'
+    const options = {
+      type: 'question' as const,
+      title: zh ? '允许发送数据以使用 AI？' : 'Allow data sharing for AI?',
+      message: zh
+        ? 'AiOffice 需要将内容发送到云端才能提供 AI 功能。'
+        : 'AiOffice needs to send content to cloud services to provide AI features.',
+      detail: zh
+        ? '如果您同意，您的指令以及您选择提供的文档、表格、演示文稿、PDF、图片和附件内容，会发送给上海栾青网络科技有限公司运营的轻语 API，并由当前选择的 AI 模型服务商（智谱 AI 或 DeepSeek）处理。使用联网搜索时，搜索词还可能发送给 Genspark、Google Serper、Tavily 或 DuckDuckGo。以上数据仅用于生成回答或执行您请求的编辑。\n\n不同意不会影响本地打开、编辑和保存文件。您可以随时在“设置 > 通用”中撤回同意。'
+        : 'If you agree, your instructions and the document, spreadsheet, presentation, PDF, image, or attachment content you choose to provide will be sent to Lightyu API, operated by Shanghai Luanqing Network Technology Co., Ltd., and processed by the selected AI model provider (Zhipu AI or DeepSeek). When web search is used, search terms may also be sent to Genspark, Google Serper, Tavily, or DuckDuckGo. This data is used only to generate a response or perform your requested edit.\n\nDeclining does not affect local file opening, editing, or saving. You can withdraw consent at any time in Settings > General.',
+      buttons: zh
+        ? ['同意并继续', '暂不使用', '查看隐私政策']
+        : ['Agree and Continue', 'Not Now', 'View Privacy Policy'],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
+    }
+    while (!hasAiDataSharingConsent()) {
+      const owner =
+        docsShellWindow ?? BrowserWindow.fromWebContents(sender) ?? BrowserWindow.getFocusedWindow()
+      const result = owner
+        ? await dialog.showMessageBox(owner, options)
+        : await dialog.showMessageBox(options)
+      if (result.response === 0) return setAiDataSharingConsent(true)
+      if (result.response !== 2) return false
+      await shell.openExternal(AI_PRIVACY_URL)
+    }
+    return true
+  })().finally(() => {
+    aiDataConsentPrompt = null
+  })
+  return aiDataConsentPrompt
+}
+
+/**
+ * AiOffice injects its desktop-session accessor here instead of passing a
+ * credential through preload or renderer state. Standalone Docs keeps its
+ * legacy provider behavior when no runtime is configured.
+ */
+export function configureAiGateway(runtime: AiGatewayRuntime | null): void {
+  aiGatewayRuntime = runtime
+}
+
+function desktopGatewaySettings(stored: Partial<AiSettings> & LegacyAiSettings): AiSettings {
+  const defaults = defaultAiSettings()
+  const savedProvider = stored.provider
+  const candidates = [
+    stored.providers?.custom?.model,
+    savedProvider ? stored.providers?.[savedProvider]?.model : undefined,
+    stored.model,
+    defaults.providers.custom.model,
+  ]
+  const savedModel =
+    candidates.find(
+      (model): model is string => typeof model === 'string' && model.trim().length > 0,
+    ) ?? ''
+  return {
+    ...defaults,
+    provider: 'custom',
+    gskToolsEnabled: false,
+    providers: {
+      ...defaults.providers,
+      custom: {
+        ...defaults.providers.custom,
+        apiKey: '',
+        baseUrl: LIGHTYU_AI_BASE_URL,
+        model: normalizeDesktopModelId(savedModel),
+      },
+    },
+  }
+}
+
+async function desktopGatewayGet<T>(path: string): Promise<T> {
+  const token = aiGatewayRuntime?.accessToken()
+  if (!token) throw new Error('请先前往设置完成轻语 API 授权登录')
+  let response: Response
+  try {
+    response = await net.fetch(`${LIGHTYU_AI_BASE_URL}${path}`, {
+      headers: { Authorization: token },
+      // A stalled Sub2API binding/proxy request must not leave the settings pane
+      // in an endless loading state. Chat streaming has its own watchdog.
+      signal: AbortSignal.timeout(15_000),
+    })
+  } catch (error) {
+    const reason = error instanceof Error ? error.name : ''
+    if (reason === 'TimeoutError' || reason === 'AbortError') {
+      throw new Error('模型目录加载超时，请稍后重试', { cause: error })
+    }
+    throw new Error('无法连接轻语 AI 服务，请检查网络后重试', { cause: error })
+  }
+  const payload = (await response.json()) as {
+    code?: unknown
+    msg?: unknown
+    data?: unknown
+    models?: unknown
+  }
+  // Keep diagnostics actionable without ever logging the desktop token or AI
+  // response body. This is especially useful when the deployed Rust gateway
+  // and the local desktop build are on different release versions.
+  console.info('[desktop-ai] gateway response', {
+    path,
+    status: response.status,
+    code: payload.code,
+    keys: Object.keys(payload),
+  })
+  if (!response.ok || payload.code !== 200) {
+    throw new Error(typeof payload.msg === 'string' ? payload.msg : '轻语 API 服务暂不可用')
+  }
+  // The Rust service has returned both {data: [...]} and {models: [...]} over
+  // time. Keep the transport tolerant while the preload normalizes the list.
+  return (
+    payload.data !== undefined
+      ? payload.data
+      : payload.models !== undefined
+        ? payload.models
+        : payload
+  ) as T
+}
+
+function firstDesktopModelId(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const id = firstDesktopModelId(item)
+      if (id) return id
+    }
+    return null
+  }
+  if (!value || typeof value !== 'object') return null
+  const item = value as Record<string, unknown>
+  for (const key of ['id', 'model', 'model_id', 'modelId', 'model_name', 'name']) {
+    if (typeof item[key] === 'string' && item[key].trim()) return item[key].trim()
+  }
+  for (const key of ['models', 'data', 'items', 'results']) {
+    const id = firstDesktopModelId(item[key])
+    if (id) return id
+  }
+  return null
+}
+
+function desktopModelRecords(value: unknown): Record<string, unknown>[] {
+  const records: Record<string, unknown>[] = []
+  const queue: unknown[] = [value]
+  const visited = new Set<object>()
+  const collectionKeys = ['models', 'data', 'items', 'results', 'ModelList', 'model_list']
+  while (queue.length > 0) {
+    const current = queue.shift()
+    if (Array.isArray(current)) {
+      queue.push(...current)
+      continue
+    }
+    if (!current || typeof current !== 'object' || visited.has(current)) continue
+    visited.add(current)
+    const record = current as Record<string, unknown>
+    if (firstDesktopModelId(record)) records.push(record)
+    for (const key of collectionKeys) {
+      if (record[key] !== undefined) queue.push(record[key])
+    }
+  }
+  return records
+}
+
+function filterDesktopModelCatalog(value: unknown): Record<string, unknown>[] {
+  const seen = new Set<string>()
+  return desktopModelRecords(value).filter((model) => {
+    const id = firstDesktopModelId(model)
+    if (!id || !DESKTOP_MODEL_IDS.has(id) || seen.has(id)) return false
+    seen.add(id)
+    return true
+  })
+}
+
+async function desktopGatewayModel(preferredModel?: string): Promise<string> {
+  // The settings pane has already loaded this user-specific catalog and only
+  // persists an id chosen from it. Re-fetching /models before every turn added
+  // an avoidable serial request and could prevent a valid chat from starting
+  // when the catalog was temporarily slow. The gateway remains authoritative
+  // and rejects retired or unauthorized model ids on the chat request itself.
+  if (preferredModel?.trim()) return normalizeDesktopModelId(preferredModel.trim())
+  const catalog = await desktopGatewayGet<unknown>('/models')
+  const model = firstDesktopModelId(catalog)
+  if (!model) throw new Error('未配置模型名称')
+  return model
+}
 
 /** live read: the shell settings pane writes the file; every tool call re-checks */
 function gskCloudToolsOn(): boolean {
@@ -2623,8 +2851,12 @@ const activeAiStreams = new Map<string, AbortController>()
  * sheets' standalone AI handlers use the same channel names.
  */
 export function registerAiIpc(): void {
+  ipcMain.handle('ai:get-data-sharing-consent', (): boolean => hasAiDataSharingConsent())
+  ipcMain.handle('ai:revoke-data-sharing-consent', (): boolean => setAiDataSharingConsent(false))
+
   ipcMain.handle('ai:get-settings', (): AiSettings => {
     const stored = readJson<Partial<AiSettings> & LegacyAiSettings>(SETTINGS_PATH(), {})
+    if (aiGatewayRuntime) return desktopGatewaySettings(stored)
     // pre-lock legacy file: genspark selected with cloud tools opted out. The
     // settings UI locks the tools switch on with genspark and apps read this
     // file live, so heal the stored flag once. Judged on the *stored* provider
@@ -2644,6 +2876,11 @@ export function registerAiIpc(): void {
   ipcMain.handle(
     'ai:gsk-status',
     async (_event, withEmail?: boolean): Promise<GenSparkAccountStatus> => {
+      if (aiGatewayRuntime) {
+        return {
+          loggedIn: aiGatewayRuntime.isLoggedIn?.() ?? Boolean(aiGatewayRuntime.accessToken()),
+        }
+      }
       if (!hasGskAuth()) return { loggedIn: false }
       if (!withEmail) return { loggedIn: true }
       const info = await gskLoginInfo()
@@ -2652,31 +2889,111 @@ export function registerAiIpc(): void {
   )
 
   ipcMain.handle('ai:gsk-login', () => {
+    if (aiGatewayRuntime) {
+      aiGatewayRuntime.startLogin?.()
+      return
+    }
     ensureGenofficeLogin((url) => void shell.openExternal(url))
   })
 
   ipcMain.handle('ai:set-settings', (_event, settings: AiSettings) => {
+    if (aiGatewayRuntime) {
+      const current = readJson<Partial<AiSettings> & LegacyAiSettings>(SETTINGS_PATH(), {})
+      const model = settings.providers?.custom?.model?.trim()
+      if (!model) throw new Error('请选择 AI 模型')
+      writeJson(SETTINGS_PATH(), {
+        ...current,
+        provider: 'custom',
+        gskToolsEnabled: false,
+        providers: {
+          custom: {
+            apiKey: '',
+            baseUrl: LIGHTYU_AI_BASE_URL,
+            model: normalizeDesktopModelId(model),
+          },
+        },
+      })
+      return
+    }
     writeJson(SETTINGS_PATH(), settings)
+  })
+
+  ipcMain.handle('ai:desktop-models', async () => {
+    if (!aiGatewayRuntime) return []
+    try {
+      const catalog = await desktopGatewayGet<unknown>('/models')
+      const filtered = filterDesktopModelCatalog(catalog)
+      return filtered.length > 0 ? filtered : FIXED_DESKTOP_MODELS
+    } catch (error) {
+      // Keep the settings page usable during a transient gateway/model-sync
+      // timeout. Authentication and server-declared errors still propagate.
+      if (error instanceof Error && /超时|无法连接/.test(error.message)) {
+        return FIXED_DESKTOP_MODELS
+      }
+      throw error
+    }
+  })
+
+  ipcMain.handle('ai:desktop-billing', async (_event, limit?: number) => {
+    if (!aiGatewayRuntime) return []
+    const safeLimit = Math.max(1, Math.min(100, Math.trunc(Number(limit) || 30)))
+    return desktopGatewayGet<unknown[]>(`/billing?limit=${safeLimit}`)
   })
 
   ipcMain.handle('ai:stream', async (event, request: AiStreamRequest) => {
     const { requestId, settings, system, messages } = request
+    const send = (chunk: AiStreamChunk) => {
+      if (!event.sender.isDestroyed()) event.sender.send('ai:stream-chunk', chunk)
+    }
+    if (!(await promptForAiDataSharingConsent(event.sender))) {
+      send({
+        requestId,
+        type: 'error',
+        error:
+          getUiLang() === 'zh' || getUiLang() === 'zh-TW'
+            ? '已取消发送，AI 未收到任何内容'
+            : 'Nothing was sent. AI data sharing was not allowed.',
+      })
+      return
+    }
     const tools = request.tools ?? []
     const maxTokens = request.maxTokens ?? maxOutputTokensOf(settings)
-    const provider = settings.provider
+    let provider = settings.provider
     let config = settings.providers?.[provider]
+    if (aiGatewayRuntime) {
+      const stored = readJson<Partial<AiSettings> & LegacyAiSettings>(SETTINGS_PATH(), {})
+      const storedModel = desktopGatewaySettings(stored).providers.custom.model
+      provider = 'custom'
+      const accessToken = aiGatewayRuntime.accessToken()
+      const preferredModel = settings.providers?.custom?.model?.trim() || storedModel
+      const model = accessToken ? await desktopGatewayModel(preferredModel) : ''
+      config = {
+        apiKey: accessToken ?? '',
+        model,
+        baseUrl: LIGHTYU_AI_BASE_URL,
+      }
+      if (model !== storedModel) {
+        writeJson(SETTINGS_PATH(), {
+          ...stored,
+          provider: 'custom',
+          gskToolsEnabled: false,
+          providers: { custom: { apiKey: '', baseUrl: LIGHTYU_AI_BASE_URL, model } },
+        })
+      }
+    }
     // the genspark key never enters the settings file; requests take it from the gsk login state
     if (provider === 'genspark' && config && !config.apiKey) {
       config = { ...config, apiKey: gskApiKey() }
-    }
-    const send = (chunk: AiStreamChunk) => {
-      if (!event.sender.isDestroyed()) event.sender.send('ai:stream-chunk', chunk)
     }
     if (!config?.apiKey) {
       send({
         requestId,
         type: 'error',
-        error: provider === 'genspark' ? tm('errGskNotLoggedIn') : tm('errNoApiKey', { provider }),
+        error: aiGatewayRuntime
+          ? '请先前往设置完成轻语 API 授权登录'
+          : provider === 'genspark'
+            ? tm('errGskNotLoggedIn')
+            : tm('errNoApiKey', { provider }),
       })
       return
     }
@@ -2736,7 +3053,10 @@ export function registerAiIpc(): void {
   })
 
   // shared search tools (content + images): Serper with DuckDuckGo fallback (same source as slides/sheets)
-  ipcMain.handle('ai:web-search', async (_event, query: string, maxResults?: number) => {
+  ipcMain.handle('ai:web-search', async (event, query: string, maxResults?: number) => {
+    if (!(await promptForAiDataSharingConsent(event.sender))) {
+      return { results: [], method: 'consent-declined', error: 'AI data sharing was not allowed' }
+    }
     try {
       return await webSearch(
         String(query),
@@ -2747,7 +3067,10 @@ export function registerAiIpc(): void {
       return { results: [], method: 'error', error: String(err) }
     }
   })
-  ipcMain.handle('ai:image-search', async (_event, query: string, maxResults?: number) => {
+  ipcMain.handle('ai:image-search', async (event, query: string, maxResults?: number) => {
+    if (!(await promptForAiDataSharingConsent(event.sender))) {
+      return { images: [], method: 'consent-declined', error: 'AI data sharing was not allowed' }
+    }
     try {
       return await imageSearch(
         String(query),
@@ -2788,7 +3111,10 @@ export function registerAiIpc(): void {
   // registered once a slides view exists, so docs needs its own channel
   ipcMain.handle(
     'docs:ai-generate-image',
-    async (_event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
+    async (event, op: { prompt?: unknown; aspectRatio?: unknown }) => {
+      if (!(await promptForAiDataSharingConsent(event.sender))) {
+        return { error: 'AI data sharing was not allowed' }
+      }
       if (!hasGskAuth())
         return {
           error: 'Genspark account is not logged in on this machine; ask the user to log in first',
@@ -2812,17 +3138,51 @@ export function registerAiIpc(): void {
     },
   )
 
-  ipcMain.handle('ai:chat', async (_event, request: AiChatRequest) => {
+  ipcMain.handle('ai:chat', async (event, request: AiChatRequest) => {
+    if (!(await promptForAiDataSharingConsent(event.sender))) {
+      return {
+        ok: false,
+        error:
+          getUiLang() === 'zh' || getUiLang() === 'zh-TW'
+            ? '已取消发送，AI 未收到任何内容'
+            : 'Nothing was sent. AI data sharing was not allowed.',
+      }
+    }
     const { settings, system, user } = request
-    const provider = settings.provider
+    let provider = settings.provider
     let config = settings.providers?.[provider]
+    if (aiGatewayRuntime) {
+      const stored = readJson<Partial<AiSettings> & LegacyAiSettings>(SETTINGS_PATH(), {})
+      const storedModel = desktopGatewaySettings(stored).providers.custom.model
+      provider = 'custom'
+      const accessToken = aiGatewayRuntime.accessToken()
+      const preferredModel = settings.providers?.custom?.model?.trim() || storedModel
+      const model = accessToken ? await desktopGatewayModel(preferredModel) : ''
+      config = {
+        apiKey: accessToken ?? '',
+        model,
+        baseUrl: LIGHTYU_AI_BASE_URL,
+      }
+      if (model !== storedModel) {
+        writeJson(SETTINGS_PATH(), {
+          ...stored,
+          provider: 'custom',
+          gskToolsEnabled: false,
+          providers: { custom: { apiKey: '', baseUrl: LIGHTYU_AI_BASE_URL, model } },
+        })
+      }
+    }
     if (provider === 'genspark' && config && !config.apiKey) {
       config = { ...config, apiKey: gskApiKey() }
     }
     if (!config?.apiKey) {
       return {
         ok: false,
-        error: provider === 'genspark' ? tm('errGskNotLoggedIn') : tm('errNoApiKey', { provider }),
+        error: aiGatewayRuntime
+          ? '请先前往设置完成轻语 API 授权登录'
+          : provider === 'genspark'
+            ? tm('errGskNotLoggedIn')
+            : tm('errNoApiKey', { provider }),
       }
     }
     if (!config.model) return { ok: false, error: tm('errNoModel') }
@@ -3304,7 +3664,18 @@ export function registerDocsIpc(): void {
       // a discarded draft in an orphaned renderer must not silently persist
       // itself to the default folder after the user chose Don't Save
       if (tornDownWcIds.has(event.sender.id)) return { ok: false }
-      const filePath = uniquePathIn(defaultSaveDir(), defaultName)
+      let filePath: string
+      if (process.mas) {
+        const result = await saveDialog(event, {
+          title: tm('dlgSaveAs'),
+          defaultPath: defaultName,
+          filters: [{ name: tm('filterWord'), extensions: ['docx'] }],
+        })
+        if (result.canceled || !result.filePath) return { ok: false }
+        filePath = result.filePath
+      } else {
+        filePath = uniquePathIn(defaultSaveDir(), defaultName)
+      }
       const passwordState = snapshotDocPassword(event.sender.id, null)
       const bytes = passwordState.password
         ? encryptDocx(Buffer.from(data), passwordState.password)
@@ -3634,6 +4005,11 @@ export function setDocsShellHooks(hooks: DocsShellHooks | null): void {
   shellHooks = hooks
 }
 
+let shellNewWindowHook: (() => void) | null = null
+export function setDocsShellNewWindowHook(hook: (() => void) | null): void {
+  shellNewWindowHook = hook
+}
+
 /** After writing an exported/AI-generated file: open it in the right tab
  * (shell) or reveal it in the folder (standalone). Tab-opening failure must
  * not report the write itself as failed — the file is already persisted. */
@@ -3746,7 +4122,7 @@ export function setDocsExtraFileMenuItems(items: MenuItemConstructorOptions[]): 
  * The standalone docs app registers no gate and always installs. */
 let docsMenuGate: (() => boolean) | null = null
 
-export function setDocsMenuGate(gate: () => boolean): void {
+export function setDocsMenuGate(gate: (() => boolean) | null): void {
   docsMenuGate = gate
 }
 
@@ -3794,7 +4170,8 @@ export function buildDocsMenu(): void {
           label: tm('menuNewWindow'),
           accelerator: 'Shift+CmdOrCtrl+N',
           click: () => {
-            if (shellHooks) shellHooks.openTab(undefined, { newBlank: true })
+            if (shellNewWindowHook) shellNewWindowHook()
+            else if (shellHooks) shellHooks.openTab(undefined, { newBlank: true })
             else markDocsNewBlank(createDocsWindow().webContents.id)
           },
         },
@@ -3982,7 +4359,7 @@ export function createDocsWindow(openPath?: string): BrowserWindow {
     height: 900,
     minWidth: 980,
     minHeight: 600,
-    title: 'GenOffice Docs',
+    title: 'AiOffice Docs',
     // Word-like custom title bar (document name centered, quick-access buttons)
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const }
@@ -4277,7 +4654,7 @@ export function startDocsStandalone(): void {
   // AI_OFFICE_USER_DATA: E2E/screenshot runs isolate userData (and the
   // single-instance lock) so parallel automation sessions don't evict each other
   if (process.env.AI_OFFICE_USER_DATA) app.setPath('userData', process.env.AI_OFFICE_USER_DATA)
-  else if (isDev) app.setPath('userData', join(app.getPath('appData'), 'GenOffice Docs Dev'))
+  else if (isDev) app.setPath('userData', join(app.getPath('appData'), 'AiOffice Docs Dev'))
 
   const hasSingleInstanceLock = app.requestSingleInstanceLock()
   if (!hasSingleInstanceLock) {

@@ -3,6 +3,7 @@ import {
   copyFileSync,
   cpSync,
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   renameSync,
@@ -34,6 +35,7 @@ import menuMdIcon1x from './assets/menu-md.png?asset'
 import menuMdIcon2x from './assets/menu-md@2x.png?asset'
 import menuHomeIcon1x from './assets/menu-home.png?asset'
 import menuHomeIcon2x from './assets/menu-home@2x.png?asset'
+import aiOfficeIcon from '../renderer/src/assets/app-icon.png?asset'
 import { createI18n, isLang, normalizeLang, setUiLang, type Lang } from '@genoffice/i18n'
 import {
   DEFAULT_SAVE_DIR_KEY,
@@ -88,15 +90,20 @@ import {
   setGskProxyUrl,
 } from '@genoffice/ai-search'
 import {
-  lightyuAccountStatus,
+  deleteLightyuAccount,
+  loginLightyuWithEmailCode,
+  lightyuServiceToken,
   lightyuLogout,
-  openLightyuLoginWindow,
+  refreshLightyuAccountStatus,
+  sendLightyuEmailCode,
+  startAppleLogin,
   startLightyuLogin,
 } from './lightyu-auth'
 
 import {
   buildDocsMenu,
   configureDocsRuntime,
+  configureAiGateway,
   docsFileRenamed,
   docsQueryDirty,
   requestDocsClose,
@@ -113,6 +120,7 @@ import {
   setDocsExtraFileMenuItems,
   setDocsMenuGate,
   setDocsShellHooks,
+  setDocsShellNewWindowHook,
   createAiDocument,
   projectFileRenamed,
   setDocsShellWindow,
@@ -158,6 +166,8 @@ import {
   flushPdfSave,
   markPdfUntitledPath,
   pdfIsDirty,
+  pdfIsUntitled,
+  completePdfUntitledSaveAs,
   requestPdfClose,
   requestPdfSaveAs,
   sendPdfPrintRequest,
@@ -195,6 +205,20 @@ import { normalizeRecentQuery, pageRecentPaths, statPathEntries } from './recent
 import { TabManager } from './tab-manager'
 import { applyUpdateChannel, initAutoUpdater } from './updater'
 import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
+import {
+  appleIapProducts,
+  appleIapPurchase,
+  appleIapAvailable,
+  registerAppleIap,
+  restoreAppleIap,
+} from './apple-iap'
+
+const APP_NAME = 'AiOffice'
+const APP_ICON = nativeImage.createFromPath(aiOfficeIcon)
+
+// `electron .` uses Electron.app in development, so its Info.plist would
+// otherwise leak the Electron name and icon into the Dock and About panel.
+app.setName(APP_NAME)
 
 /**
  * GenOffice unified shell: ONE Electron app, ONE BrowserWindow, hosting the
@@ -210,11 +234,16 @@ import { isUpdateChannel, type UpdateChannel } from '../shared/update-api'
 // run silently quits and forwards its argv to the running installed GenOffice.
 // GENOFFICE_USER_DATA: test drivers point this at a scratch dir so an
 // automated instance can run alongside the dev instance (separate lock).
-if (!app.isPackaged)
-  app.setPath(
-    'userData',
-    process.env.GENOFFICE_USER_DATA ?? join(app.getPath('appData'), 'GenOffice Dev'),
-  )
+if (!app.isPackaged) {
+  const configuredUserData = process.env.GENOFFICE_USER_DATA
+  const newUserData = configuredUserData ?? join(app.getPath('appData'), 'AiOffice Dev')
+  const legacyUserData = join(app.getPath('appData'), 'GenOffice Dev')
+  // Keep existing development credentials/settings usable after the product rename.
+  if (!configuredUserData && !existsSync(newUserData) && existsSync(legacyUserData)) {
+    cpSync(legacyUserData, newUserData, { recursive: true })
+  }
+  app.setPath('userData', newUserData)
+}
 
 // The product rename from "AI Office" to GenOffice changed the userData path; migrate old user data once
 if (app.isPackaged) {
@@ -405,6 +434,10 @@ const GENTEAM_URL = 'https://genoffice.ai/join'
 // Genspark credit-usage page opened from the account menu's credits row.
 // Kept main-side so the renderer never supplies the URL.
 const CREDIT_USAGE_URL = 'https://www.genspark.ai/credit-usage'
+
+// Lightyu API account, credits, and membership management page.
+const LIGHTYU_WEBSITE_URL = 'https://5555api.com'
+const LIGHTYU_RECHARGE_URL = 'https://5555api.com/#recharge'
 
 // ---- "star us on GitHub" prompt (see star-prompt.ts for the rules) ----
 
@@ -2305,6 +2338,7 @@ const tm = (key: Parameters<typeof tMain>[1], params?: Parameters<typeof tMain>[
 // ---- the shell window + its tab manager (recreated if the user closes it on macOS) ----
 
 let shellWindow: BrowserWindow | null = null
+let isQuitting = false
 let tabManager: TabManager | null = null
 
 /**
@@ -2369,7 +2403,8 @@ function createShellWindow(): void {
     height: 900,
     minWidth: 980,
     minHeight: 600,
-    title: 'GenOffice',
+    title: APP_NAME,
+    icon: APP_ICON,
     // vibrancy: editor modules punch translucent regions (e.g. the slides
     // thumbnail pane) through to the desktop
     ...(process.platform === 'darwin'
@@ -2496,8 +2531,13 @@ function createShellWindow(): void {
       dirtyMarkdown.length === 0 &&
       dirtySlides.length === 0 &&
       docsTabs.length === 0
-    )
+    ) {
+      if (process.platform === 'darwin' && !isQuitting) {
+        event.preventDefault()
+        win.hide()
+      }
       return
+    }
     event.preventDefault()
     void (async () => {
       for (const tab of dirtySheets) {
@@ -2527,8 +2567,16 @@ function createShellWindow(): void {
   })
 
   win.on('closed', () => {
-    if (shellWindow === win) shellWindow = null
+    if (shellWindow !== win) return
+    shellWindow = null
     if (tabManager === manager) tabManager = null
+    setDocsMenuGate(null)
+    setDocsShellHooks(null)
+    setDocsShellWindow(null)
+    setSheetsShellWindow(null)
+    setSlidesShellWindow(null)
+    setSheetsCloseTabHook(null)
+    setSlidesCloseTabHook(null)
   })
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -2706,7 +2754,9 @@ function routeDocumentPath(filePath: string): boolean {
  */
 async function newSheetTab(): Promise<void> {
   try {
-    const filePath = uniquePathIn(defaultSaveDir(), `${tm('untitledSheet')}.xlsx`)
+    const dir = process.mas ? join(app.getPath('temp'), 'aioffice-unsaved') : defaultSaveDir()
+    if (process.mas) mkdirSync(dir, { recursive: true })
+    const filePath = uniquePathIn(dir, `${tm('untitledSheet')}.xlsx`)
     writeFileSync(filePath, await blankXlsxBuffer())
     // eligible for content-derived auto-rename after the first AI generation
     markSheetsUntitledPath(filePath)
@@ -2773,7 +2823,9 @@ function newMarkdownTab(): void {
  */
 async function newPdfTab(): Promise<void> {
   try {
-    const filePath = uniquePathIn(defaultSaveDir(), `${tm('untitledPdf')}.pdf`)
+    const dir = process.mas ? join(app.getPath('temp'), 'aioffice-unsaved') : defaultSaveDir()
+    if (process.mas) mkdirSync(dir, { recursive: true })
+    const filePath = uniquePathIn(dir, `${tm('untitledPdf')}.pdf`)
     writeFileSync(filePath, await blankPdfBuffer())
     // Opt the file into content-derived auto-naming on its first save
     markPdfUntitledPath(filePath)
@@ -2825,7 +2877,7 @@ function statEntries(paths: string[]): RecentEntry[] {
 
 function registerHomeIpc(): void {
   ipcMain.handle(HOME_CHANNELS.accountStatus, async () => {
-    return lightyuAccountStatus()
+    return refreshLightyuAccountStatus()
   })
 
   ipcMain.handle(HOME_CHANNELS.accountLogin, async (event) => {
@@ -2841,13 +2893,41 @@ function registerHomeIpc(): void {
     return launched
   })
 
-  ipcMain.handle(HOME_CHANNELS.accountLoginOpenUrl, () => {
-    openLightyuLoginWindow()
+  ipcMain.handle(HOME_CHANNELS.accountAppleLogin, async (event) => {
+    analytics.track('login_click')
+    const sender = event.sender
+    const send = (payload: AccountLoginEvent) => {
+      if (!sender.isDestroyed()) sender.send(HOME_CHANNELS.accountLoginEvent, payload)
+    }
+    const launched = startAppleLogin((progress) => {
+      if (progress.phase === 'success') analytics.track('login_success')
+      send(progress)
+    })
+    return launched
+  })
+
+  ipcMain.handle(HOME_CHANNELS.accountSendEmailCode, async (_event, account: unknown) => {
+    if (typeof account !== 'string') throw new Error('请输入邮箱地址')
+    await sendLightyuEmailCode(account)
+  })
+
+  ipcMain.handle(HOME_CHANNELS.accountEmailLogin, async (_event, value: unknown) => {
+    if (!value || typeof value !== 'object') throw new Error('登录参数无效')
+    const input = value as { account?: unknown; code?: unknown }
+    if (typeof input.account !== 'string' || typeof input.code !== 'string')
+      throw new Error('登录参数无效')
+    await loginLightyuWithEmailCode(input.account, input.code)
+    analytics.track('login_success')
   })
 
   ipcMain.handle(HOME_CHANNELS.accountLogout, async () => {
     lightyuLogout()
     // the cloud projects cache belongs to the account that just signed out
+    clearCloudProjectsStore(cloudProjectsStorePath())
+  })
+
+  ipcMain.handle(HOME_CHANNELS.accountDelete, async () => {
+    await deleteLightyuAccount()
     clearCloudProjectsStore(cloudProjectsStorePath())
   })
 
@@ -3110,6 +3190,25 @@ function registerHomeIpc(): void {
     })
   })
 
+  ipcMain.handle(HOME_CHANNELS.openLightyuWebsite, () => {
+    shell.openExternal(LIGHTYU_WEBSITE_URL).catch(() => {
+      // no browser handler available; nothing actionable for the user here
+    })
+  })
+
+  ipcMain.handle(HOME_CHANNELS.openLightyuRecharge, () => {
+    shell.openExternal(LIGHTYU_RECHARGE_URL).catch(() => {
+      // no browser handler available; nothing actionable for the user here
+    })
+  })
+
+  ipcMain.handle('home:apple-iap-products', () => appleIapProducts())
+  ipcMain.handle('home:apple-iap-available', () => appleIapAvailable())
+  ipcMain.handle('home:apple-iap-purchase', (_event, productId?: string) =>
+    appleIapPurchase(productId),
+  )
+  ipcMain.handle('home:apple-iap-restore', () => restoreAppleIap())
+
   ipcMain.handle(HOME_CHANNELS.githubStars, () => fetchGithubStars())
 
   // returning true also counts as "shown": the renderer displays it
@@ -3359,7 +3458,7 @@ function buildPdfMenu(): void {
         {
           label: tm('backToHome'),
           accelerator: 'Shift+CmdOrCtrl+H',
-          click: () => tabManager?.openHomeTab(),
+          click: openHomeWindow,
         },
         { type: 'separator' },
         {
@@ -3367,7 +3466,9 @@ function buildPdfMenu(): void {
           accelerator: 'CmdOrCtrl+S',
           click: () => {
             const tab = tabManager?.activePdfTab()
-            if (tab) void flushPdfSave(tab.webContents)
+            if (!tab) return
+            if (pdfIsUntitled(tab.webContents)) void savePdfAs()
+            else void flushPdfSave(tab.webContents)
           },
         },
         {
@@ -3442,7 +3543,7 @@ function buildMarkdownMenu(): void {
         {
           label: tm('backToHome'),
           accelerator: 'Shift+CmdOrCtrl+H',
-          click: () => tabManager?.openHomeTab(),
+          click: openHomeWindow,
         },
         { type: 'separator' },
         {
@@ -3524,6 +3625,8 @@ let savingPdfAs = false
 async function savePdfAs(): Promise<void> {
   const tab = tabManager?.activePdfTab()
   if (!tab?.filePath || !shellWindow || savingPdfAs) return
+  const wasUntitled = pdfIsUntitled(tab.webContents)
+  const originalTabId = tab.id
   savingPdfAs = true
   // Pause renderer autosave for the whole flow: the dialog blurs the window, and a
   // blur-triggered autosave would write the pending edits into the original file
@@ -3543,6 +3646,10 @@ async function savePdfAs(): Promise<void> {
       copyFileSync(tab.filePath, picked.filePath)
     }
     openDocumentPath(picked.filePath)
+    if (wasUntitled) {
+      completePdfUntitledSaveAs(tab.webContents)
+      await tabManager?.closeTab(originalTabId)
+    }
   } finally {
     savingPdfAs = false
     setPdfSaveAsInFlight(tab.webContents, false)
@@ -4029,7 +4136,7 @@ function installBackToHomeItems(): void {
   const backToHomeItem: MenuItemConstructorOptions = {
     label: tm('backToHome'),
     accelerator: 'Shift+CmdOrCtrl+H',
-    click: () => tabManager?.openHomeTab(),
+    click: openHomeWindow,
   }
   setDocsExtraFileMenuItems([backToHomeItem])
   setSheetsExtraFileMenuItems([backToHomeItem])
@@ -4040,7 +4147,7 @@ function installDockMenu(): void {
   if (process.platform !== 'darwin') return
   app.dock?.setMenu(
     Menu.buildFromTemplate([
-      { label: tm('menuHome'), click: () => tabManager?.openHomeTab() },
+      { label: tm('menuHome'), click: openHomeWindow },
       {
         label: tm('menuNewDoc'),
         click: () => newDocTab(),
@@ -4099,13 +4206,18 @@ async function installMainProcessProxy(): Promise<void> {
 
 let pendingLaunchPath = supportedFileIn(process.argv) ?? unsupportedFileIn(process.argv)
 
-// show() does not un-minimize, and on macOS ⌘W destroys the shell window while the
-// app keeps running — either way a file opened from Finder would land out of sight.
+// show() does not un-minimize, and a hidden shell window must be restored before
+// a file opened from Finder or a second instance can be shown.
 function revealShellWindow(): void {
-  if (!shellWindow) createShellWindow()
+  if (!shellWindow || shellWindow.isDestroyed()) createShellWindow()
   if (shellWindow?.isMinimized()) shellWindow.restore()
   shellWindow?.show()
   shellWindow?.focus()
+}
+
+function openHomeWindow(): void {
+  revealShellWindow()
+  tabManager?.openHomeTab()
 }
 
 // On macOS a file opened from Finder is not in argv; it arrives via the open-file event (before ready).
@@ -4133,6 +4245,14 @@ app.on('second-instance', (_event, argv, _cwd, additionalData) => {
 
 installNavigationGuard(app)
 installContextMenu(app, () => contextMenuLabels(currentLang()))
+registerAppleIap(() => shellWindow)
+configureAiGateway({
+  accessToken: lightyuServiceToken,
+  isLoggedIn: () => Boolean(lightyuServiceToken()),
+  startLogin: () => {
+    startLightyuLogin(() => {})
+  },
+})
 registerAiIpc()
 registerProjectIpc()
 registerDocsIpc()
@@ -4147,6 +4267,14 @@ setSessionPathResolver(resolveSheetsSessionPath)
 const devPidFile = () => join(app.getPath('userData'), 'dev-instance.pid')
 
 app.whenReady().then(async () => {
+  app.setAboutPanelOptions({
+    applicationName: APP_NAME,
+    applicationVersion: app.getVersion(),
+    version: app.getVersion(),
+    copyright: '上海栾青网络科技有限公司',
+  })
+  if (process.platform === 'darwin' && !APP_ICON.isEmpty()) app.dock?.setIcon(APP_ICON)
+
   const lockData = () => (pendingLaunchPath ? { launchPath: pendingLaunchPath } : {})
   let hasLock = app.requestSingleInstanceLock(lockData())
   if (!hasLock && !app.isPackaged) {
@@ -4219,6 +4347,10 @@ app.whenReady().then(async () => {
   initAnalytics()
   analytics.track('app_launch')
   startSheetsCaptureServer()
+  setDocsShellNewWindowHook(() => {
+    revealShellWindow()
+    tabManager?.openDocsTab(undefined, { newBlank: true })
+  })
   createShellWindow()
   // deferred to ready: labels need currentLang(), which reads app.getLocale()
   installBackToHomeItems()
@@ -4229,7 +4361,7 @@ app.whenReady().then(async () => {
   pendingLaunchPath = null
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createShellWindow()
+    revealShellWindow()
   })
 })
 
@@ -4238,6 +4370,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  isQuitting = true
   // No close prompt may fall through to "Save" during shutdown
   markSheetsShuttingDown()
   stopSheetsSidecar()

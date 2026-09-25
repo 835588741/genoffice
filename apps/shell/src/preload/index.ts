@@ -15,6 +15,8 @@ import type {
   ProjectSummaryEntry,
   TimelineEntryItem,
   UiLanguage,
+  AppleIapEvent,
+  AppleIapProduct,
 } from '../shared/home-api'
 import { HOME_CHANNELS, PROJECT_CHANNELS } from '../shared/home-api'
 import type { TabsApi, TabSummary } from '../shared/tabs-api'
@@ -47,6 +49,13 @@ function isUiLanguage(value: unknown): value is UiLanguage {
 }
 
 const EMPTY_PAGE: RecentPage = { entries: [], total: 0, totalAll: 0 }
+
+/** Models exposed by the AiOffice desktop product. The gateway may publish
+ * more providers, but the desktop UI intentionally keeps this catalog small. */
+const DESKTOP_MODEL_LABELS: Readonly<Record<string, string>> = {
+  'glm-5.3-flash': '智普模型',
+  'deepseek-v4-flash-vision-exp': 'DeepSeek模型',
+}
 
 function asRecentPage(result: unknown): RecentPage {
   if (result && typeof result === 'object' && Array.isArray((result as RecentPage).entries)) {
@@ -142,16 +151,34 @@ const homeApi: HomeApi = {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.accountLogin)
     return result === true
   },
+  async accountAppleLogin() {
+    const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.accountAppleLogin)
+    return result === true
+  },
   onAccountLogin(handler) {
     const listener = (_event: IpcRendererEvent, ev: AccountLoginEvent) => handler(ev)
     ipcRenderer.on(HOME_CHANNELS.accountLoginEvent, listener)
     return () => ipcRenderer.removeListener(HOME_CHANNELS.accountLoginEvent, listener)
   },
-  async openLoginUrl() {
-    await ipcRenderer.invoke(HOME_CHANNELS.accountLoginOpenUrl)
+  async accountSendEmailCode(account) {
+    if (typeof account !== 'string' || account.trim().length === 0)
+      throw new Error('请输入邮箱地址')
+    await ipcRenderer.invoke(HOME_CHANNELS.accountSendEmailCode, account.trim())
+  },
+  async accountEmailLogin(account, code) {
+    if (typeof account !== 'string' || account.trim().length === 0)
+      throw new Error('请输入邮箱地址')
+    if (typeof code !== 'string' || code.trim().length === 0) throw new Error('请输入验证码')
+    await ipcRenderer.invoke(HOME_CHANNELS.accountEmailLogin, {
+      account: account.trim(),
+      code: code.trim(),
+    })
   },
   async accountLogout() {
     await ipcRenderer.invoke(HOME_CHANNELS.accountLogout)
+  },
+  async accountDelete() {
+    await ipcRenderer.invoke(HOME_CHANNELS.accountDelete)
   },
   async getAppVersion() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.getAppVersion)
@@ -176,11 +203,19 @@ const homeApi: HomeApi = {
   },
   async getAnalyticsEnabled() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.getAnalyticsEnabled)
-    return result !== false
+    return result === true
   },
   async setAnalyticsEnabled(enabled) {
     if (typeof enabled !== 'boolean') throw new Error('Invalid analytics consent.')
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.setAnalyticsEnabled, enabled)
+    return result === true
+  },
+  async getAiDataSharingConsent() {
+    const result: unknown = await ipcRenderer.invoke('ai:get-data-sharing-consent')
+    return result === true
+  },
+  async revokeAiDataSharingConsent() {
+    const result: unknown = await ipcRenderer.invoke('ai:revoke-data-sharing-consent')
     return result === true
   },
   async getDefaultSaveDir() {
@@ -206,6 +241,12 @@ const homeApi: HomeApi = {
   },
   async openGitHubRepo() {
     await ipcRenderer.invoke(HOME_CHANNELS.openGitHubRepo)
+  },
+  async openLightyuWebsite() {
+    await ipcRenderer.invoke(HOME_CHANNELS.openLightyuWebsite)
+  },
+  async openLightyuRecharge() {
+    await ipcRenderer.invoke(HOME_CHANNELS.openLightyuRecharge)
   },
   async githubStars() {
     const result: unknown = await ipcRenderer.invoke(HOME_CHANNELS.githubStars)
@@ -272,6 +313,98 @@ const homeApi: HomeApi = {
       ? { ok: true }
       : { ok: false, error: typeof raw.error === 'string' ? raw.error : 'Connection failed' }
   },
+  async desktopAiModels() {
+    const result: unknown = await ipcRenderer.invoke('ai:desktop-models')
+    const rawModels = extractModelList(result)
+    return rawModels
+      .filter((item): item is Record<string, unknown> => {
+        if (!item || typeof item !== 'object') return false
+        const model = item as Record<string, unknown>
+        const id = modelIdentifier(model)
+        return id !== null && Object.hasOwn(DESKTOP_MODEL_LABELS, id)
+      })
+      .map((item) => {
+        const model = item as Record<string, unknown>
+        const id = modelIdentifier(model)!
+        const name = [
+          model.name,
+          model.display_name,
+          model.displayName,
+          model.label,
+          model.title,
+        ].find((value): value is string => typeof value === 'string' && value.trim().length > 0)
+        return {
+          id,
+          name: DESKTOP_MODEL_LABELS[id] ?? name?.trim() ?? id,
+        }
+      })
+  },
+  async desktopAiBilling(limit) {
+    const result: unknown = await ipcRenderer.invoke('ai:desktop-billing', limit)
+    return Array.isArray(result) ? result : []
+  },
+  async appleIapAvailable() {
+    return (await ipcRenderer.invoke('home:apple-iap-available')) === true
+  },
+  async appleIapProducts() {
+    const result: unknown = await ipcRenderer.invoke('home:apple-iap-products')
+    return Array.isArray(result) ? (result as AppleIapProduct[]) : []
+  },
+  async appleIapPurchase(productId?: string) {
+    const result: unknown = await ipcRenderer.invoke('home:apple-iap-purchase', productId)
+    return result && typeof result === 'object'
+      ? (result as { started: boolean; error?: string })
+      : { started: false, error: '无法发起 Apple 内购' }
+  },
+  async appleIapRestore() {
+    await ipcRenderer.invoke('home:apple-iap-restore')
+  },
+  onAppleIapEvent(handler) {
+    const listener = (_event: IpcRendererEvent, value: unknown) => {
+      if (value && typeof value === 'object') handler(value as AppleIapEvent)
+    }
+    ipcRenderer.on('home:apple-iap-event', listener)
+    return () => ipcRenderer.removeListener('home:apple-iap-event', listener)
+  },
+}
+
+function extractModelList(result: unknown): unknown[] {
+  const queue: unknown[] = [result]
+  const visited = new Set<object>()
+  const collectionKeys = ['models', 'data', 'items', 'results', 'ModelList', 'model_list']
+  while (queue.length > 0) {
+    const current = queue.shift()
+    if (Array.isArray(current)) {
+      if (
+        current.some(
+          (item) =>
+            item && typeof item === 'object' && modelIdentifier(item as Record<string, unknown>),
+        )
+      ) {
+        return current
+      }
+      for (const item of current) {
+        if (item && typeof item === 'object') queue.push(item)
+      }
+      continue
+    }
+    if (!current || typeof current !== 'object' || visited.has(current)) continue
+    visited.add(current)
+    const payload = current as Record<string, unknown>
+    if (modelIdentifier(payload)) return [payload]
+    for (const key of collectionKeys) {
+      if (payload[key] !== undefined) queue.push(payload[key])
+    }
+  }
+  throw new Error('模型目录格式错误')
+}
+
+function modelIdentifier(model: Record<string, unknown>): string | null {
+  for (const key of ['id', 'model', 'model_id', 'modelId', 'model_name', 'name']) {
+    const value = model[key]
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return null
 }
 
 function asCloudProjectsSnapshot(result: unknown): CloudProjectsSnapshot | null {

@@ -16,6 +16,7 @@
 }
 
 .set-dialog {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: min(960px, 100%);
@@ -134,6 +135,348 @@
   min-height: 52px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-subtle);
+}
+
+.set-account-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 0 16px;
+}
+
+.set-account-avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-hover-strong);
+}
+
+.set-account-avatar-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.set-account-profile-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.set-account-profile-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.set-account-profile-balance {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.set-login-pane {
+  width: min(430px, 100%);
+  margin: 12px auto 0;
+}
+
+.set-login-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.set-login-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+}
+
+.set-login-title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 650;
+}
+
+.set-login-subtitle,
+.set-login-legal {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.set-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.set-login-label {
+  margin-top: 4px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.set-login-input {
+  width: 100%;
+  min-width: 0;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 7px;
+  background: var(--bg-content);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.set-login-input:focus {
+  border-color: var(--color-btn-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-btn-primary) 18%, transparent);
+}
+
+.set-login-code-row {
+  display: flex;
+  gap: 8px;
+}
+
+.set-login-code-row .set-login-input {
+  flex: 1;
+}
+
+.set-login-code-btn {
+  flex: 0 0 112px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.set-login-submit {
+  width: 100%;
+  height: 38px;
+  margin-top: 8px;
+}
+
+.set-login-error {
+  margin-top: 4px;
+  color: var(--color-danger, #c33b3b);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.set-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0 14px;
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 12px;
+}
+
+.set-login-divider::before,
+.set-login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.set-login-providers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.set-login-provider {
+  min-height: 38px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.set-login-provider.apple {
+  justify-content: center;
+}
+
+.set-apple-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+  font-size: 10px;
+}
+
+.set-confirm-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--color-bg-overlay);
+}
+
+.set-confirm-dialog {
+  width: min(420px, 100%);
+  padding: 22px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-modal-strong);
+}
+
+.set-confirm-dialog h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+
+.set-confirm-dialog p {
+  margin: 8px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.set-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.set-account-service {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.set-account-service-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.set-account-service-site {
+  width: fit-content;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.set-account-service-site:hover {
+  color: var(--color-btn-primary);
+  text-decoration: underline;
+}
+
+.set-account-service-company {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.set-account-service-note {
+  color: var(--text-tertiary, var(--text-secondary));
+  font-size: 12px;
+}
+
+.set-account-recharge-btn {
+  height: 34px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.set-account-iap {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.set-account-iap-title {
+  margin-bottom: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.set-account-iap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.set-account-iap-option {
+  display: flex;
+  min-width: 0;
+  min-height: 52px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: var(--bg-content);
+  color: var(--text-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.set-account-iap-option:hover:not(:disabled) {
+  border-color: var(--color-btn-primary);
+  background: var(--bg-hover);
+}
+
+.set-account-iap-option:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.set-account-iap-beans {
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set-account-iap-price {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.set-account-iap-status {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+@media (max-width: 680px) {
+  .set-account-iap-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .set-field:last-child {
@@ -353,6 +696,12 @@
   background: var(--color-btn-primary-hover);
 }
 
+.account-login-btn {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 14px;
+}
+
 .set-btn.danger {
   color: var(--danger);
 }
@@ -393,6 +742,84 @@
 .set-ai-note {
   padding: 8px 0 2px;
   line-height: 1.5;
+}
+
+.set-empty-state {
+  padding: 28px 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.set-model-error {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+}
+
+.set-model-error-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.set-billing-list {
+  border-top: 1px solid var(--border);
+}
+
+.set-billing-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 62px;
+  border-bottom: 1px solid var(--border);
+}
+
+.set-billing-main,
+.set-billing-cost {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.set-billing-model,
+.set-billing-cost strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.set-billing-time,
+.set-billing-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.set-billing-meta {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.set-billing-time {
+  color: var(--text-tertiary, var(--text-secondary));
+}
+
+.set-billing-cost {
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.set-billing-status.settled {
+  color: var(--success);
+}
+
+.set-billing-status.failed {
+  color: var(--danger);
 }
 
 /* footer feedback pill: spinner while testing, green on success/saved, red on failure */
