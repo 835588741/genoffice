@@ -447,6 +447,7 @@ const config = {
         provisioningProfile: masProvisioningProfile,
         entitlements: 'build/entitlements.mas.plist',
         entitlementsInherit: 'build/entitlements.mas.inherit.plist',
+        identity: process.env.AIOFFICE_MAS_INSTALLER_IDENTITY || undefined,
         hardenedRuntime: false,
         notarize: false,
       }

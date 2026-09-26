@@ -3,8 +3,8 @@
 ## Review build
 
 - App: AiOffice for macOS
-- Bundle ID: `com.luanqing.aioffice`
-- Build: fill in the uploaded build number
+- Bundle ID: `net.luanqing.aioffice`
+- Build: `1.2.14`
 - Review contact: fill in the support contact used in App Store Connect
 
 ## Sign-in instructions
