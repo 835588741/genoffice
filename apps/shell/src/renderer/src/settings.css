@@ -188,6 +188,7 @@
   --set-login-blue: #2368e8;
   --set-login-blue-strong: #1858d0;
   --set-login-blue-soft: #edf4ff;
+  --set-login-control-height: 52px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -244,18 +245,8 @@
   font-weight: 600;
 }
 
-.set-login-field-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
+.set-login-code-label {
   margin-top: 8px;
-}
-
-.set-login-field-hint {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  white-space: nowrap;
 }
 
 .set-login-input-wrap {
@@ -278,7 +269,7 @@
 .set-login-input {
   width: 100%;
   min-width: 0;
-  height: 44px;
+  height: var(--set-login-control-height);
   padding: 0 13px 0 42px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
@@ -312,7 +303,7 @@
 
 button.set-login-code-btn {
   flex: 0 0 112px;
-  height: 44px;
+  height: var(--set-login-control-height);
   justify-content: center;
   padding: 0 8px;
   border: 1px solid var(--border-subtle);
@@ -335,7 +326,7 @@ button.set-login-code-btn:hover:not(:disabled) {
   justify-content: center;
   gap: 9px;
   width: 100%;
-  height: 44px;
+  height: var(--set-login-control-height);
   margin-top: 10px;
   border: none;
   border-radius: 8px;
@@ -538,12 +529,6 @@ button.set-login-submit:focus-visible {
 }
 
 @media (max-width: 520px) {
-  .set-login-field-heading {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 3px;
-  }
-
   .set-login-code-row {
     flex-direction: column;
   }

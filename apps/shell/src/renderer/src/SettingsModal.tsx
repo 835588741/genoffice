@@ -566,12 +566,12 @@ function LoginPane({
                 required
               />
             </div>
-            <div className="set-login-field-heading">
-              <label className="set-login-label" htmlFor="aioffice-login-code">
-                邮箱验证码
-              </label>
-              <span className="set-login-field-hint">发送至上方邮箱</span>
-            </div>
+            <label
+              className="set-login-label set-login-code-label"
+              htmlFor="aioffice-login-code"
+            >
+              邮箱验证码
+            </label>
             <div className="set-login-code-row">
               <div className="set-login-input-wrap">
                 <svg
