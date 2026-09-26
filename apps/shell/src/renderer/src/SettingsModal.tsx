@@ -524,15 +524,12 @@ function LoginPane({
       <div className="set-login-layout">
         <section className="set-login-card">
           <div className="set-login-heading">
-            <div>
-              <span className="set-login-card-kicker">账户访问</span>
-              <h3 className="set-login-title">欢迎回来</h3>
-              <p className="set-login-subtitle">登录后继续你的工作</p>
-            </div>
+            <h3 className="set-login-title">登录 AiOffice</h3>
+            <p className="set-login-subtitle">使用邮箱验证码登录，或选择其他授权方式</p>
           </div>
           <form className="set-login-form" onSubmit={(event) => void submit(event)}>
             <label className="set-login-label" htmlFor="aioffice-login-email">
-              邮箱地址
+              邮箱
             </label>
             <div className="set-login-input-wrap">
               <svg
@@ -573,7 +570,7 @@ function LoginPane({
               <label className="set-login-label" htmlFor="aioffice-login-code">
                 邮箱验证码
               </label>
-              <span className="set-login-field-hint">验证码将发送至你的邮箱</span>
+              <span className="set-login-field-hint">发送至上方邮箱</span>
             </div>
             <div className="set-login-code-row">
               <div className="set-login-input-wrap">
@@ -616,7 +613,7 @@ function LoginPane({
                 disabled={sending || cooldown > 0 || !account.trim()}
                 onClick={() => void sendCode()}
               >
-                {sending ? '发送中…' : cooldown > 0 ? `${cooldown}s` : '获取验证码'}
+                {sending ? '发送中…' : cooldown > 0 ? `${cooldown}s 后重发` : '发送验证码'}
               </button>
             </div>
             {error && (
@@ -668,7 +665,10 @@ function LoginPane({
                   d="M14.9 10.6c0-2.1 1.7-3.1 1.8-3.2-1-.1-2.2-1.1-3.4-1.1-1.4-.1-2.6.8-3.2.8-.7 0-1.7-.8-2.8-.8-1.4 0-2.7.9-3.4 2.2-1.5 2.6-.4 6.5 1 8.6.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.7-.7 1.3 0 1.7.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.2s-1.6-.7-1.6-2.4ZM13 5c.6-.7 1-1.6.9-2.5-.8 0-1.8.5-2.4 1.2-.5.6-1 1.5-.9 2.4.9.1 1.8-.4 2.4-1.1Z"
                 />
               </svg>
-              <span>{loginWaiting ? '正在授权…' : 'Apple 登录'}</span>
+              <span className="set-login-provider-copy">
+                <strong>{loginWaiting ? '正在授权…' : '使用 Apple 登录'}</strong>
+                <small>通过 Apple 安全授权</small>
+              </span>
             </button>
             <button
               className="set-btn set-login-provider lightyu"
@@ -681,7 +681,10 @@ function LoginPane({
                   <path d="m11.8 2.8-6.2 8h4.1l-1.5 6.4 6.2-8h-4.1l1.5-6.4Z" fill="currentColor" />
                 </svg>
               </span>
-              <span>轻语 API 授权</span>
+              <span className="set-login-provider-copy">
+                <strong>轻语 API 授权</strong>
+                <small>在浏览器中完成授权</small>
+              </span>
             </button>
           </div>
           <p className="set-login-legal">
