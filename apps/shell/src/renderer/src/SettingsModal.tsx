@@ -224,18 +224,16 @@ function AiModelPane({
           })
         }
       })
-      .catch(
-        (error) => {
-          if (!alive) return
-          const message = error instanceof Error ? error.message : '模型目录暂不可用'
-          if (isLightyuLoginError(error)) {
-            setLoginRequired(true)
-            setErrorMessage(null)
-          } else {
-            setErrorMessage(message)
-          }
-        },
-      )
+      .catch((error) => {
+        if (!alive) return
+        const message = error instanceof Error ? error.message : '模型目录暂不可用'
+        if (isLightyuLoginError(error)) {
+          setLoginRequired(true)
+          setErrorMessage(null)
+        } else {
+          setErrorMessage(message)
+        }
+      })
       .finally(() => alive && setLoading(false))
     return () => {
       alive = false
@@ -523,82 +521,259 @@ function LoginPane({
 
   return (
     <div className="set-login-pane">
-      <div className="set-login-heading">
-        <div className="set-login-mark" aria-hidden="true">
-          <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
-            <rect x="2" y="2" width="28" height="28" rx="8" fill="var(--color-btn-primary)" />
-            <path
-              d="M9 11.5h14M9 16h10M9 20.5h7"
-              stroke="white"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
-        <div>
-          <h3 className="set-login-title">登录 AiOffice</h3>
-          <p className="set-login-subtitle">使用邮箱或第三方账号继续</p>
-        </div>
-      </div>
-      <form className="set-login-form" onSubmit={(event) => void submit(event)}>
-        <label className="set-login-label" htmlFor="aioffice-login-email">
-          邮箱
-        </label>
-        <input
-          id="aioffice-login-email"
-          className="set-login-input"
-          type="email"
-          autoComplete="email"
-          placeholder="请输入邮箱地址"
-          value={account}
-          onChange={(event) => setAccount(event.target.value)}
-          required
-        />
-        <label className="set-login-label" htmlFor="aioffice-login-code">
-          邮箱验证码
-        </label>
-        <div className="set-login-code-row">
-          <input
-            id="aioffice-login-code"
-            className="set-login-input"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            placeholder="请输入验证码"
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            required
-          />
-          <button
-            className="set-btn set-login-code-btn"
-            type="button"
-            disabled={sending || cooldown > 0 || !account.trim()}
-            onClick={() => void sendCode()}
-          >
-            {sending ? '发送中…' : cooldown > 0 ? `${cooldown}s` : '发送验证码'}
-          </button>
-        </div>
-        {error && (
-          <div className="set-login-error" role="alert">
-            {error}
+      <div className="set-login-layout">
+        <section className="set-login-brand" aria-label="AiOffice">
+          <div className="set-login-brand-head">
+            <div className="set-login-mark" aria-hidden="true">
+              <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+                <rect x="1" y="1" width="30" height="30" rx="9" fill="currentColor" />
+                <path
+                  d="M9 11.5h14M9 16h10M9 20.5h7"
+                  stroke="var(--set-login-brand-surface)"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <span className="set-login-brand-name">AiOffice</span>
           </div>
-        )}
-        <button className="set-btn primary set-login-submit" type="submit" disabled={submitting}>
-          {submitting ? '登录中…' : '邮箱登录 / 注册'}
-        </button>
-      </form>
-      <div className="set-login-divider" aria-hidden="true">
-        <span>或</span>
+          <div className="set-login-brand-copy">
+            <span className="set-login-eyebrow">AI 驱动的全能办公</span>
+            <h3>把想法，变成可以交付的成果。</h3>
+            <p>文档、表格、演示与 PDF 在一个工作空间里协同完成。</p>
+          </div>
+          <div className="set-login-feature-list">
+            <div className="set-login-feature">
+              <span className="set-login-feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M5.2 3.5h6.3l3.3 3.3v9.7H5.2V3.5Z"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                  />
+                  <path
+                    d="M11.5 3.8v3.4h3.1M7.7 10h4.6M7.7 13h3.2"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <span>专注内容创作，减少工具切换</span>
+            </div>
+            <div className="set-login-feature">
+              <span className="set-login-feature-icon" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M10 2.8 11.5 7l4.2 1.5-4.2 1.5L10 14.2 8.5 10 4.3 8.5 8.5 7 10 2.8Z"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="M15.2 13.2v3M13.7 14.7h3"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+              <span>需要时调用 AI，保持工作节奏</span>
+            </div>
+          </div>
+          <div className="set-login-brand-foot">
+            <span className="set-login-status-dot" aria-hidden="true" />
+            <span>本地优先，云端能力随时可用</span>
+          </div>
+        </section>
+
+        <section className="set-login-card">
+          <div className="set-login-heading">
+            <div>
+              <span className="set-login-card-kicker">账户访问</span>
+              <h3 className="set-login-title">欢迎回来</h3>
+              <p className="set-login-subtitle">登录后继续你的工作</p>
+            </div>
+          </div>
+          <form className="set-login-form" onSubmit={(event) => void submit(event)}>
+            <label className="set-login-label" htmlFor="aioffice-login-email">
+              邮箱地址
+            </label>
+            <div className="set-login-input-wrap">
+              <svg
+                className="set-login-input-icon"
+                viewBox="0 0 20 20"
+                fill="none"
+                aria-hidden="true"
+              >
+                <rect
+                  x="2.6"
+                  y="4.2"
+                  width="14.8"
+                  height="11.6"
+                  rx="2.2"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                />
+                <path
+                  d="m3.5 5.3 6.5 5 6.5-5"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <input
+                id="aioffice-login-email"
+                className="set-login-input"
+                type="email"
+                autoComplete="email"
+                placeholder="name@example.com"
+                value={account}
+                onChange={(event) => setAccount(event.target.value)}
+                required
+              />
+            </div>
+            <div className="set-login-field-heading">
+              <label className="set-login-label" htmlFor="aioffice-login-code">
+                邮箱验证码
+              </label>
+              <span className="set-login-field-hint">验证码将发送至你的邮箱</span>
+            </div>
+            <div className="set-login-code-row">
+              <div className="set-login-input-wrap">
+                <svg
+                  className="set-login-input-icon"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <rect
+                    x="3"
+                    y="4.2"
+                    width="14"
+                    height="11.6"
+                    rx="2.2"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                  />
+                  <path
+                    d="M6.5 8.2h.1M10 8.2h.1M13.5 8.2h.1M6.5 11.8h.1M10 11.8h.1M13.5 11.8h.1"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <input
+                  id="aioffice-login-code"
+                  className="set-login-input"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="输入 6 位验证码"
+                  value={code}
+                  onChange={(event) => setCode(event.target.value)}
+                  required
+                />
+              </div>
+              <button
+                className="set-btn set-login-code-btn"
+                type="button"
+                disabled={sending || cooldown > 0 || !account.trim()}
+                onClick={() => void sendCode()}
+              >
+                {sending ? '发送中…' : cooldown > 0 ? `${cooldown}s` : '获取验证码'}
+              </button>
+            </div>
+            {error && (
+              <div className="set-login-error" role="alert">
+                <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6.2" stroke="currentColor" strokeWidth="1.4" />
+                  <path
+                    d="M8 4.8v3.8M8 11.2v.1"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span>{error}</span>
+              </div>
+            )}
+            <button
+              className="set-btn primary set-login-submit"
+              type="submit"
+              disabled={submitting}
+            >
+              <span>{submitting ? '登录中…' : '登录或创建账号'}</span>
+              {!submitting && (
+                <svg viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                  <path
+                    d="M3.5 9h10M9.5 5l4 4-4 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              )}
+            </button>
+          </form>
+          <div className="set-login-divider" aria-hidden="true">
+            <span>其他登录方式</span>
+          </div>
+          <div className="set-login-providers">
+            <button
+              className="set-btn set-login-provider apple"
+              type="button"
+              disabled={loginWaiting}
+              onClick={onAppleLogin}
+            >
+              <svg className="set-provider-icon apple-icon" viewBox="0 0 20 20" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M14.9 10.6c0-2.1 1.7-3.1 1.8-3.2-1-.1-2.2-1.1-3.4-1.1-1.4-.1-2.6.8-3.2.8-.7 0-1.7-.8-2.8-.8-1.4 0-2.7.9-3.4 2.2-1.5 2.6-.4 6.5 1 8.6.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.7-.7 1.3 0 1.7.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.2s-1.6-.7-1.6-2.4ZM13 5c.6-.7 1-1.6.9-2.5-.8 0-1.8.5-2.4 1.2-.5.6-1 1.5-.9 2.4.9.1 1.8-.4 2.4-1.1Z"
+                />
+              </svg>
+              <span>{loginWaiting ? '正在授权…' : 'Apple 登录'}</span>
+            </button>
+            <button
+              className="set-btn set-login-provider lightyu"
+              type="button"
+              disabled={loginWaiting}
+              onClick={onLightyuLogin}
+            >
+              <span className="set-lightyu-mark" aria-hidden="true">
+                <svg viewBox="0 0 20 20" fill="none">
+                  <path d="m11.8 2.8-6.2 8h4.1l-1.5 6.4 6.2-8h-4.1l1.5-6.4Z" fill="currentColor" />
+                </svg>
+              </span>
+              <span>轻语 API 授权</span>
+            </button>
+          </div>
+          <p className="set-login-legal">
+            登录即表示你同意轻语 API 的
+            <a
+              href="https://5555api.com"
+              onClick={(event) => {
+                event.preventDefault()
+                void window.aiOffice.openLightyuWebsite()
+              }}
+            >
+              服务条款
+            </a>
+            和
+            <a
+              href="https://5555api.com"
+              onClick={(event) => {
+                event.preventDefault()
+                void window.aiOffice.openLightyuWebsite()
+              }}
+            >
+              隐私政策
+            </a>
+            。
+          </p>
+        </section>
       </div>
-      <div className="set-login-providers">
-        <button className="set-btn set-login-provider apple" disabled={loginWaiting} onClick={onAppleLogin}>
-          <span className="set-apple-mark" aria-hidden="true">●</span>
-          {loginWaiting ? '正在授权…' : '使用 Apple 登录'}
-        </button>
-        <button className="set-btn set-login-provider" disabled={loginWaiting} onClick={onLightyuLogin}>
-          轻语 API 授权登录
-        </button>
-      </div>
-      <p className="set-login-legal">登录即表示你同意轻语 API 的服务条款和隐私政策。</p>
     </div>
   )
 }
@@ -904,7 +1079,11 @@ export function SettingsModal({
                 )}
                 {loggedIn && (
                   <div className="set-pane-footer">
-                    <button className="set-btn" disabled={loggingOut || deletingAccount} onClick={onLogout}>
+                    <button
+                      className="set-btn"
+                      disabled={loggingOut || deletingAccount}
+                      onClick={onLogout}
+                    >
                       {loggingOut ? t('loggingOut') : t('logout')}
                     </button>
                     <button
@@ -1064,9 +1243,16 @@ export function SettingsModal({
         </div>
         {deleteConfirmOpen && (
           <div className="set-confirm-overlay" role="presentation">
-            <div className="set-confirm-dialog" role="alertdialog" aria-modal="true" aria-label="删除账号">
+            <div
+              className="set-confirm-dialog"
+              role="alertdialog"
+              aria-modal="true"
+              aria-label="删除账号"
+            >
               <h3>删除账号</h3>
-              <p>此操作不可恢复。账号资料、登录凭据和未使用的金豆将被删除，本地文档不会受到影响。</p>
+              <p>
+                此操作不可恢复。账号资料、登录凭据和未使用的金豆将被删除，本地文档不会受到影响。
+              </p>
               <p>请输入“删除账号”确认。</p>
               <input
                 className="set-login-input"
@@ -1075,9 +1261,17 @@ export function SettingsModal({
                 autoFocus
                 aria-label="删除账号确认文本"
               />
-              {deleteError && <div className="set-login-error" role="alert">{deleteError}</div>}
+              {deleteError && (
+                <div className="set-login-error" role="alert">
+                  {deleteError}
+                </div>
+              )}
               <div className="set-confirm-actions">
-                <button className="set-btn" disabled={deletingAccount} onClick={() => setDeleteConfirmOpen(false)}>
+                <button
+                  className="set-btn"
+                  disabled={deletingAccount}
+                  onClick={() => setDeleteConfirmOpen(false)}
+                >
                   取消
                 </button>
                 <button
@@ -1086,7 +1280,9 @@ export function SettingsModal({
                   onClick={() => {
                     setDeleteError('')
                     void onDeleteAccount().catch((cause) => {
-                      setDeleteError(cause instanceof Error ? cause.message : '账号删除失败，请稍后重试')
+                      setDeleteError(
+                        cause instanceof Error ? cause.message : '账号删除失败，请稍后重试',
+                      )
                     })
                   }}
                 >
