@@ -519,8 +519,12 @@ function startDesktopLogin(
       return
     }
     flow.redirectUri = `http://127.0.0.1:${address.port}${CALLBACK_PATH}`
-    const authorizeEndpoint = provider === 'apple' ? '/data/user/apple/authorize' : '/login.html'
-    lastAuthUrl = `${API_BASE_URL}${authorizeEndpoint}?${new URLSearchParams({
+    // Both providers start at the hosted login page. Apple authorization is
+    // a two-step browser flow there: the page exchanges Apple's ticket and
+    // then calls /data/user/desktop/authorize with the PKCE request. Opening
+    // /data/user/apple/authorize directly skips that desktop hand-off and
+    // leaves the local callback without a code.
+    lastAuthUrl = `${API_BASE_URL}/login.html?${new URLSearchParams({
       client_id: CLIENT_ID,
       redirect_uri: flow.redirectUri,
       state,
@@ -538,13 +542,19 @@ function startDesktopLogin(
           return
         }
         return fetch(callbackUrl, { redirect: 'manual' }).then((response) => {
-          if (!response.ok && !flow.done) {
+          // The browser and ASWebAuthenticationSession can both touch the
+          // loopback URL. The second request is expected while the first one
+          // is exchanging the code, so do not turn its 409 into a failure.
+          if (!response.ok && response.status !== 409 && !flow.done) {
             finishFlow(flow, { phase: 'error', error: '登录回调未完成，请重试' })
           }
         })
       })
       .catch((error) => {
-        if (!flow.done) {
+        // ASWebAuthenticationSession may report the HTTP callback as a
+        // cancellation after the loopback server has already accepted it.
+        // The server owns the exchange once processing has started.
+        if (!flow.done && !flow.processing) {
           finishFlow(flow, {
             phase: 'error',
             error: error instanceof Error ? error.message : '登录授权失败，请重试',

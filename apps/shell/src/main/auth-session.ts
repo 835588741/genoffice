@@ -11,10 +11,10 @@ export interface AuthSessionHandle {
 
 function helperPath(): string {
   const root = app.isPackaged ? process.resourcesPath : app.getAppPath()
-  return join(root, 'native', 'auth-session')
+  return join(root, 'native', 'AiOffice.app', 'Contents', 'MacOS', 'auth-session')
 }
 
-/** Runs the signed macOS helper that owns ASWebAuthenticationSession. */
+/** Runs the signed macOS app-bundled helper that owns ASWebAuthenticationSession. */
 export function startAuthSession(loginUrl: string, callbackScheme: string): AuthSessionHandle {
   const child = spawn(helperPath(), [loginUrl, callbackScheme], {
     stdio: ['ignore', 'pipe', 'pipe'],

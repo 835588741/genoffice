@@ -493,11 +493,13 @@ function AccountEntry({
   useEffect(() => {
     const off = window.aiOffice.onAccountLogin?.((ev) => {
       if (ev.phase === 'success') {
+        // The main process emits success only after the credential is saved.
+        // Clear the spinner immediately; the status refresh is only for
+        // painting the account details and must not gate completion.
+        setWaiting(false)
         void window.aiOffice.accountStatus().then((s) => {
-          if (s.loggedIn) {
-            setStatus(s)
-            setWaiting(false)
-          }
+          setStatus(s)
+          if (!s.loggedIn) setLoginError('failed')
         })
       } else if (ev.phase === 'error') {
         setWaiting(false)
@@ -578,12 +580,17 @@ function AccountEntry({
     loginDeadline.current = Date.now() + LOGIN_MAX_WAIT_MS
     setLoginNonce((n) => n + 1)
     const launch = provider === 'apple' ? window.aiOffice.accountAppleLogin() : window.aiOffice.accountLogin()
-    void launch.then((launched) => {
-      if (!launched) {
+    void launch
+      .then((launched) => {
+        if (!launched) {
+          setWaiting(false)
+          setLoginError('launch')
+        }
+      })
+      .catch(() => {
         setWaiting(false)
         setLoginError('launch')
-      }
-    })
+      })
   }
 
   const loginWithEmail = async (account: string, code: string) => {

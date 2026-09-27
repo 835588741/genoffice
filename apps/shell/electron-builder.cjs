@@ -152,9 +152,9 @@ if (process.platform === 'win32' && !existsSync(join(__dirname, WIN_OCR_HELPER))
 // ASWebAuthenticationSession is hosted by a tiny native process so MAS builds
 // can keep the account sign-in inside Apple's authentication session rather
 // than opening an arbitrary external browser URL from Electron.
-const AUTH_SESSION_HELPER = 'native/auth-session'
+const AUTH_SESSION_HELPER = 'native/AiOffice.app'
 function authSessionHelperIsUniversal() {
-  const helper = join(__dirname, AUTH_SESSION_HELPER)
+  const helper = join(__dirname, AUTH_SESSION_HELPER, 'Contents', 'MacOS', 'auth-session')
   if (!existsSync(helper)) return false
   try {
     const archs = execFileSync('lipo', ['-archs', helper], { encoding: 'utf8' })
