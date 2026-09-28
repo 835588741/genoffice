@@ -1,9 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { createServer, type Server, type ServerResponse } from 'node:http'
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { app, safeStorage } from 'electron'
-import { startAuthSession, type AuthSessionHandle } from './auth-session'
+import {
+  startAppleAuthSession,
+  startAuthSession,
+  type AppleAuthCredential,
+} from './auth-session'
 
 const API_BASE_URL = 'https://5555api.com'
 const CLIENT_ID = 'genoffice-desktop'
@@ -11,7 +14,11 @@ const AUTH_FILE_NAME = 'lightyu-auth.json'
 const GUEST_AUTH_FILE_NAME = 'lightyu-guest.json'
 const SESSION_TTL = 30 * 24 * 60 * 60 * 1000
 const FLOW_TTL = 10 * 60 * 1000
-const CALLBACK_PATH = '/desktop/callback'
+// ASWebAuthenticationSession completes only for an app-owned URL scheme. A
+// loopback HTTP callback leaves the browser in charge and can route a later
+// authorization through an already-closed local port.
+const AUTH_CALLBACK_SCHEME = 'net.luanqing.aioffice.auth'
+const AUTH_CALLBACK_URI = `${AUTH_CALLBACK_SCHEME}://desktop/callback`
 const MAX_AVATAR_BYTES = 512 * 1024
 
 export interface LightyuAccountStatus {
@@ -56,23 +63,32 @@ interface DesktopLoginData {
   profile?: Profile
 }
 
-interface AuthFlow {
-  server: Server
-  state: string
-  verifier: string
-  redirectUri: string
+interface AuthFlowBase {
   emit: (progress: LightyuLoginProgress) => void
   timer: NodeJS.Timeout
   done: boolean
   processing: boolean
   controller: AbortController
-  response?: ServerResponse
-  authSession?: AuthSessionHandle
+  authSession?: { cancel: () => void }
 }
+
+interface AuthFlow extends AuthFlowBase {
+  kind: 'web'
+  state: string
+  verifier: string
+  redirectUri: string
+}
+
+interface AppleAuthFlow extends AuthFlowBase {
+  kind: 'apple'
+  rawNonce: string
+}
+
+type ActiveFlow = AuthFlow | AppleAuthFlow
 
 let cachedAuth: StoredAuth | null | undefined
 let cachedGuestAuth: StoredAuth | null | undefined
-let activeFlow: AuthFlow | undefined
+let activeFlow: ActiveFlow | undefined
 let lastAuthUrl = ''
 
 export function lightyuAuthPath(): string {
@@ -272,36 +288,20 @@ export function clearLightyuGuest(): void {
   cachedGuestAuth = null
 }
 
-function finishFlow(flow: AuthFlow, progress: LightyuLoginProgress, notify = true): void {
+function finishFlow(flow: ActiveFlow, progress: LightyuLoginProgress, notify = true): void {
   if (flow.done) return
   flow.done = true
   clearTimeout(flow.timer)
   flow.controller.abort()
   flow.authSession?.cancel()
-  if (flow.response && !flow.response.destroyed && !flow.response.writableEnded) {
-    const success = progress.phase === 'success'
-    flow.response.writeHead(success ? 200 : 400, {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-store',
-      'Referrer-Policy': 'no-referrer',
-    })
-    flow.response.end(
-      '<!doctype html><meta charset="utf-8"><title>轻语 API</title><p>' +
-        (success
-          ? '授权成功，请返回 AiOffice。'
-          : '授权未完成或已取消，请返回 AiOffice 重新登录。') +
-        '</p>',
-    )
-  }
   if (activeFlow === flow) {
     activeFlow = undefined
     lastAuthUrl = ''
   }
-  flow.server.close()
   if (notify) flow.emit(progress)
 }
 
-function cancelFlow(flow: AuthFlow): void {
+function cancelFlow(flow: ActiveFlow): void {
   finishFlow(flow, { phase: 'error', error: '登录授权已取消' }, false)
 }
 
@@ -434,72 +434,87 @@ async function exchangeDesktopCode(flow: AuthFlow, code: string): Promise<void> 
   }
 }
 
-function createCallbackServer(flow: AuthFlow): Server {
-  return createServer((request, response) => {
-    if (request.method !== 'GET') {
-      response.writeHead(405)
-      response.end()
+async function exchangeAppleCredential(
+  flow: AppleAuthFlow,
+  credential: AppleAuthCredential,
+): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/data/user/apple/native-login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.any([flow.controller.signal, AbortSignal.timeout(30000)]),
+      body: JSON.stringify({
+        user: credential.user,
+        identityToken: credential.identityToken,
+        authorizationCode: credential.authorizationCode,
+        nonce: flow.rawNonce,
+        email: credential.email,
+        givenName: credential.givenName,
+        familyName: credential.familyName,
+        clientId: CLIENT_ID,
+        guestToken: lightyuGuestToken() ?? undefined,
+      }),
+    })
+    const result = await parseApiResult(response)
+    const data = (result.data ?? {}) as DesktopLoginData
+    const token = data.token
+    if (flow.done || activeFlow !== flow) {
+      if (response.ok && result.code === 200 && typeof token === 'string' && token)
+        revokeToken(token)
       return
     }
+    if (!response.ok || result.code !== 200 || typeof token !== 'string' || !token) {
+      finishFlow(flow, { phase: 'error', error: result.msg || 'Apple 登录失败，请重试' })
+      return
+    }
+    await saveDesktopLogin(data)
+    finishFlow(flow, { phase: 'success' })
+  } catch {
+    finishFlow(flow, { phase: 'error', error: 'Apple 登录失败，请检查网络后重试' })
+  }
+}
 
-    let callbackUrl: URL
-    try {
-      callbackUrl = new URL(request.url || '/', 'http://127.0.0.1')
-    } catch {
-      response.writeHead(400)
-      response.end('回调地址无效')
-      return
-    }
-
-    if (callbackUrl.pathname !== CALLBACK_PATH) {
-      response.writeHead(404)
-      response.end()
-      return
-    }
-    if (flow.done || flow.processing) {
-      response.writeHead(409)
-      response.end('授权流程已完成')
-      return
-    }
-
-    const returnedState = callbackUrl.searchParams.get('state') || ''
-    const code = callbackUrl.searchParams.get('code') || ''
-    const error = callbackUrl.searchParams.get('error') || ''
-    if (returnedState !== flow.state) {
-      response.writeHead(400)
-      response.end('授权状态无效')
-      finishFlow(flow, { phase: 'error', error: '授权状态无效，请重试' })
-      return
-    }
-    if (error || !code) {
-      response.writeHead(400)
-      response.end('授权失败')
-      finishFlow(flow, { phase: 'error', error: '网页端未完成登录授权' })
-      return
-    }
-
-    flow.processing = true
-    flow.response = response
-    void exchangeDesktopCode(flow, code)
-  })
+function receiveAuthCallback(flow: AuthFlow, callbackUri: string): void {
+  if (flow.done || flow.processing || activeFlow !== flow) return
+  if (!isExpectedCallback(flow.redirectUri, callbackUri)) {
+    finishFlow(flow, { phase: 'error', error: '登录回调地址无效，请重试' })
+    return
+  }
+  let callbackUrl: URL
+  try {
+    callbackUrl = new URL(callbackUri)
+  } catch {
+    finishFlow(flow, { phase: 'error', error: '登录回调地址无效，请重试' })
+    return
+  }
+  const returnedState = callbackUrl.searchParams.get('state') || ''
+  const code = callbackUrl.searchParams.get('code') || ''
+  const error = callbackUrl.searchParams.get('error') || ''
+  if (returnedState !== flow.state) {
+    finishFlow(flow, { phase: 'error', error: '授权状态无效，请重试' })
+    return
+  }
+  if (error || !code) {
+    finishFlow(flow, { phase: 'error', error: '网页端未完成登录授权' })
+    return
+  }
+  flow.processing = true
+  void exchangeDesktopCode(flow, code)
 }
 
 function startDesktopLogin(
   emit: (progress: LightyuLoginProgress) => void,
-  provider: 'lightyu' | 'apple',
 ): boolean {
   if (activeFlow) cancelFlow(activeFlow)
 
   const state = encodeBase64Url(randomBytes(24))
   const verifier = encodeBase64Url(randomBytes(32))
   const challenge = encodeBase64Url(createHash('sha256').update(verifier).digest())
-  const flow = {} as AuthFlow
-  const server = createCallbackServer(flow)
-  Object.assign(flow, {
-    server,
+  const flow: AuthFlow = {
+    kind: 'web',
     state,
     verifier,
-    redirectUri: '',
+    redirectUri: AUTH_CALLBACK_URI,
     emit,
     timer: setTimeout(
       () => finishFlow(flow, { phase: 'error', error: '登录授权已超时，请重试' }),
@@ -508,70 +523,71 @@ function startDesktopLogin(
     done: false,
     processing: false,
     controller: new AbortController(),
-  })
+  }
   activeFlow = flow
-
-  server.listen(0, '127.0.0.1', () => {
-    if (flow.done || activeFlow !== flow) return
-    const address = server.address()
-    if (!address || typeof address === 'string') {
-      finishFlow(flow, { phase: 'error', error: '无法启动本地授权服务' })
-      return
-    }
-    flow.redirectUri = `http://127.0.0.1:${address.port}${CALLBACK_PATH}`
-    // Both providers start at the hosted login page. Apple authorization is
-    // a two-step browser flow there: the page exchanges Apple's ticket and
-    // then calls /data/user/desktop/authorize with the PKCE request. Opening
-    // /data/user/apple/authorize directly skips that desktop hand-off and
-    // leaves the local callback without a code.
-    lastAuthUrl = `${API_BASE_URL}/login.html?${new URLSearchParams({
-      client_id: CLIENT_ID,
-      redirect_uri: flow.redirectUri,
-      state,
-      code_challenge: challenge,
-      code_challenge_method: 'S256',
-    }).toString()}`
-    emit({ phase: 'launched' })
-    const authSession = startAuthSession(lastAuthUrl, 'http')
-    flow.authSession = authSession
-    void authSession.promise
-      .then((callbackUrl) => {
-        if (flow.done || activeFlow !== flow) return
-        if (!isExpectedCallback(flow.redirectUri, callbackUrl)) {
-          finishFlow(flow, { phase: 'error', error: '登录回调地址无效，请重试' })
-          return
-        }
-        return fetch(callbackUrl, { redirect: 'manual' }).then((response) => {
-          // The browser and ASWebAuthenticationSession can both touch the
-          // loopback URL. The second request is expected while the first one
-          // is exchanging the code, so do not turn its 409 into a failure.
-          if (!response.ok && response.status !== 409 && !flow.done) {
-            finishFlow(flow, { phase: 'error', error: '登录回调未完成，请重试' })
-          }
+  lastAuthUrl = `${API_BASE_URL}/login.html?${new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: flow.redirectUri,
+    state,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+  }).toString()}`
+  emit({ phase: 'launched' })
+  const authSession = startAuthSession(lastAuthUrl, AUTH_CALLBACK_SCHEME)
+  flow.authSession = authSession
+  void authSession.promise
+    .then((callbackUrl) => receiveAuthCallback(flow, callbackUrl))
+    .catch((error) => {
+      if (!flow.done && !flow.processing) {
+        finishFlow(flow, {
+          phase: 'error',
+          error: error instanceof Error ? error.message : '登录授权失败，请重试',
         })
-      })
-      .catch((error) => {
-        // ASWebAuthenticationSession may report the HTTP callback as a
-        // cancellation after the loopback server has already accepted it.
-        // The server owns the exchange once processing has started.
-        if (!flow.done && !flow.processing) {
-          finishFlow(flow, {
-            phase: 'error',
-            error: error instanceof Error ? error.message : '登录授权失败，请重试',
-          })
-        }
-      })
-  })
-  server.on('error', () => finishFlow(flow, { phase: 'error', error: '无法启动本地授权服务' }))
+      }
+    })
   return true
 }
 
 export function startLightyuLogin(emit: (progress: LightyuLoginProgress) => void): boolean {
-  return startDesktopLogin(emit, 'lightyu')
+  return startDesktopLogin(emit)
 }
 
 export function startAppleLogin(emit: (progress: LightyuLoginProgress) => void): boolean {
-  return startDesktopLogin(emit, 'apple')
+  if (activeFlow) cancelFlow(activeFlow)
+
+  const rawNonce = encodeBase64Url(randomBytes(32))
+  const nonceHash = createHash('sha256').update(rawNonce).digest('hex')
+  const flow: AppleAuthFlow = {
+    kind: 'apple',
+    rawNonce,
+    emit,
+    timer: setTimeout(
+      () => finishFlow(flow, { phase: 'error', error: 'Apple 登录已超时，请重试' }),
+      FLOW_TTL,
+    ),
+    done: false,
+    processing: false,
+    controller: new AbortController(),
+  }
+  activeFlow = flow
+  emit({ phase: 'launched' })
+  const authSession = startAppleAuthSession(nonceHash)
+  flow.authSession = authSession
+  void authSession.promise
+    .then((credential) => {
+      if (flow.done || activeFlow !== flow) return
+      flow.processing = true
+      void exchangeAppleCredential(flow, credential)
+    })
+    .catch((error) => {
+      if (!flow.done) {
+        finishFlow(flow, {
+          phase: 'error',
+          error: error instanceof Error ? error.message : 'Apple 登录失败，请重试',
+        })
+      }
+    })
+  return true
 }
 
 function isExpectedCallback(expectedUri: string, callbackUri: string): boolean {

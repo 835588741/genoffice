@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const mocks = vi.hoisted(() => ({
   disk: new Map<string, string>(),
   startAuthSession: vi.fn(),
+  startAppleAuthSession: vi.fn(),
 }))
 vi.mock('electron', () => ({
   app: { getPath: () => '/test-lightyu' },
@@ -10,6 +11,7 @@ vi.mock('electron', () => ({
 }))
 vi.mock('../src/main/auth-session', () => ({
   startAuthSession: mocks.startAuthSession,
+  startAppleAuthSession: mocks.startAppleAuthSession,
 }))
 vi.mock('node:fs', () => ({
   readFileSync: (path: string) => {
@@ -34,7 +36,6 @@ let reject: (error: Error) => void
 let exchangeSignal: AbortSignal | undefined
 let exchangeBody: Record<string, unknown> | undefined
 let revoked: string[]
-let realFetch: typeof fetch
 
 const authPath = '/test-lightyu/lightyu-auth.json'
 const guestAuthPath = '/test-lightyu/lightyu-guest.json'
@@ -43,14 +44,13 @@ beforeEach(async () => {
   vi.resetModules()
   mocks.disk.clear()
   mocks.startAuthSession.mockReset()
+  mocks.startAppleAuthSession.mockReset()
   exchangeSignal = undefined
   exchangeBody = undefined
   revoked = []
-  realFetch = globalThis.fetch
   vi.stubGlobal(
     'fetch',
     vi.fn((url: string, options: RequestInit) => {
-      if (url.startsWith('http://127.0.0.1:')) return realFetch(url, options)
       if (url.endsWith('/logout')) {
         revoked.push((options.headers as Record<string, string>).Authorization)
         return Promise.resolve(new Response('{}'))
@@ -107,29 +107,22 @@ it('only reports browser success after token exchange and persistence succeed', 
   expect(auth.lightyuAccountStatus().jindou).toBe(1234)
 })
 
-it('completes when the local callback arrives before the native helper callback', async () => {
-  const cancel = vi.fn()
-  mocks.startAuthSession.mockImplementationOnce(() => ({
-    promise: new Promise<string>(() => {}),
-    cancel,
-  }))
+it('rejects a callback whose state does not belong to the active authorization', async () => {
+  mocks.startAuthSession.mockImplementationOnce((url: string) => {
+    const authUrl = new URL(url)
+    const callback = new URL(authUrl.searchParams.get('redirect_uri')!)
+    callback.searchParams.set('state', 'wrong-state')
+    callback.searchParams.set('code', 'test-code')
+    return { promise: Promise.resolve(callback.toString()), cancel: vi.fn() }
+  })
   const events: { phase: string }[] = []
   auth.startLightyuLogin((event) => events.push(event))
   await vi.waitFor(() => expect(mocks.startAuthSession).toHaveBeenCalled())
-  const authUrl = new URL(mocks.startAuthSession.mock.calls.at(-1)?.[0] as string)
-  const redirect = new URL(authUrl.searchParams.get('redirect_uri')!)
-  redirect.searchParams.set('state', authUrl.searchParams.get('state')!)
-  redirect.searchParams.set('code', 'test-code')
-  const callbackResponsePromise = realFetch(redirect, { redirect: 'manual' })
-  await vi.waitFor(() => expect(exchangeSignal).toBeDefined())
-  success()
-  const callbackResponse = await callbackResponsePromise
-  expect(callbackResponse.status).toBe(200)
-  await vi.waitFor(() => expect(events.at(-1)?.phase).toBe('success'))
-  expect(cancel).toHaveBeenCalled()
+  await vi.waitFor(() => expect(events.at(-1)?.phase).toBe('error'))
+  expect(exchangeSignal).toBeUndefined()
 })
 
-it('keeps exchanging after the native helper reports cancellation', async () => {
+it('reports native authentication cancellation instead of leaving the UI waiting', async () => {
   let rejectAuthSession!: (error: Error) => void
   mocks.startAuthSession.mockImplementationOnce(() => ({
     promise: new Promise<string>((_resolve, reject) => {
@@ -140,43 +133,46 @@ it('keeps exchanging after the native helper reports cancellation', async () => 
   const events: { phase: string }[] = []
   auth.startLightyuLogin((event) => events.push(event))
   await vi.waitFor(() => expect(mocks.startAuthSession).toHaveBeenCalled())
-  const authUrl = new URL(mocks.startAuthSession.mock.calls.at(-1)?.[0] as string)
-  const redirect = new URL(authUrl.searchParams.get('redirect_uri')!)
-  redirect.searchParams.set('state', authUrl.searchParams.get('state')!)
-  redirect.searchParams.set('code', 'test-code')
-  const callbackResponsePromise = realFetch(redirect, { redirect: 'manual' })
-  await vi.waitFor(() => expect(exchangeSignal).toBeDefined())
   rejectAuthSession(new Error('登录授权已取消'))
-  success()
-  const callbackResponse = await callbackResponsePromise
-  expect(callbackResponse.status).toBe(200)
-  await vi.waitFor(() => expect(events.at(-1)?.phase).toBe('success'))
+  await vi.waitFor(() => expect(events.at(-1)?.phase).toBe('error'))
+  expect(exchangeSignal).toBeUndefined()
 })
 
-it('ignores a duplicate callback while the first exchange is in flight', async () => {
-  const { events } = await callback()
-  const authUrl = new URL(mocks.startAuthSession.mock.calls.at(-1)?.[0] as string)
-  const redirect = new URL(authUrl.searchParams.get('redirect_uri')!)
-  redirect.searchParams.set('state', authUrl.searchParams.get('state')!)
-  redirect.searchParams.set('code', 'test-code')
-
-  const duplicateResponse = await realFetch(redirect, { redirect: 'manual' })
-  expect(duplicateResponse.status).toBe(409)
-  success()
-  await vi.waitFor(() => expect(events.at(-1)?.phase).toBe('success'))
-})
-
-it('starts Apple desktop authorization at the hosted login page', async () => {
-  mocks.startAuthSession.mockImplementationOnce(() => ({
+it('starts Apple authorization natively without opening the hosted login page', async () => {
+  mocks.startAppleAuthSession.mockImplementationOnce(() => ({
     promise: new Promise<string>(() => {}),
     cancel: vi.fn(),
   }))
   auth.startAppleLogin(() => {})
-  await vi.waitFor(() => expect(mocks.startAuthSession).toHaveBeenCalled())
-  const authUrl = new URL(mocks.startAuthSession.mock.calls.at(-1)?.[0] as string)
-  expect(authUrl.pathname).toBe('/login.html')
-  expect(authUrl.searchParams.get('client_id')).toBe('genoffice-desktop')
-  expect(authUrl.searchParams.get('redirect_uri')).toMatch(/^http:\/\/127\.0\.0\.1:/)
+  await vi.waitFor(() => expect(mocks.startAppleAuthSession).toHaveBeenCalled())
+  expect(mocks.startAuthSession).not.toHaveBeenCalled()
+  expect(mocks.startAppleAuthSession).toHaveBeenLastCalledWith(expect.stringMatching(/^[a-f0-9]{64}$/))
+})
+
+it('exchanges native Apple credentials through the native API endpoint', async () => {
+  mocks.startAppleAuthSession.mockImplementationOnce(() => ({
+    promise: Promise.resolve({
+      user: 'apple-user',
+      identityToken: 'signed-identity-token',
+      authorizationCode: 'authorization-code',
+      email: 'user@example.com',
+      givenName: 'Test',
+      familyName: 'User',
+    }),
+    cancel: vi.fn(),
+  }))
+  const events: { phase: string }[] = []
+  auth.startAppleLogin((event) => events.push(event))
+  await vi.waitFor(() => expect(exchangeBody?.identityToken).toBe('signed-identity-token'))
+  expect(exchangeBody).toMatchObject({
+    user: 'apple-user',
+    authorizationCode: 'authorization-code',
+    email: 'user@example.com',
+    clientId: 'genoffice-desktop',
+  })
+  expect(String(exchangeBody?.nonce)).toMatch(/^[A-Za-z0-9_-]{43}$/)
+  success()
+  await vi.waitFor(() => expect(events.at(-1)?.phase).toBe('success'))
 })
 
 it('returns browser failure when token exchange fails', async () => {

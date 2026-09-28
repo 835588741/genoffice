@@ -43,6 +43,10 @@ try {
     rmSync(output, { force: true })
     renameSync(slices[0], output)
   } else execFileSync('lipo', ['-create', ...slices, '-output', output], { stdio: 'inherit' })
+  // The architecture slices are build intermediates. Remove them before
+  // codesigning the bundle, otherwise codesign treats them as unsigned nested
+  // code and rejects the helper bundle.
+  for (const slice of slices) rmSync(slice, { force: true })
 
   // ASWebAuthenticationSession uses the host bundle's display name in its
   // system confirmation dialog. A bare Mach-O has no Info.plist, so macOS
@@ -59,11 +63,22 @@ try {
   <key>CFBundleExecutable</key>
   <string>auth-session</string>
   <key>CFBundleIdentifier</key>
-  <string>net.luanqing.aioffice.auth-session</string>
+  <string>net.luanqing.aioffice</string>
   <key>CFBundleName</key>
   <string>AiOffice</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>net.luanqing.aioffice.auth</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>net.luanqing.aioffice.auth</string>
+      </array>
+    </dict>
+  </array>
   <key>CFBundleShortVersionString</key>
   <string>1.0</string>
   <key>CFBundleVersion</key>
@@ -79,13 +94,15 @@ try {
   // sandbox, so sign both the executable and its containing app bundle before
   // the parent app is assembled. The identity is supplied by the same CSC_NAME
   // used by electron-builder.
-  if (process.env.AIOFFICE_BUILD_MAS === '1') {
-    const identity = process.env.AIOFFICE_AUTH_SESSION_SIGN_IDENTITY || process.env.CSC_NAME
-    if (!identity) {
-      throw new Error(
-        'AIOFFICE_AUTH_SESSION_SIGN_IDENTITY or CSC_NAME is required for MAS authentication helper signing',
-      )
-    }
+  const identity =
+    process.env.AIOFFICE_AUTH_SESSION_SIGN_IDENTITY ||
+    (process.env.AIOFFICE_BUILD_MAS === '1' ? process.env.CSC_NAME : undefined)
+  if (process.env.AIOFFICE_BUILD_MAS === '1' && !identity) {
+    throw new Error(
+      'AIOFFICE_AUTH_SESSION_SIGN_IDENTITY or CSC_NAME is required for MAS authentication helper signing',
+    )
+  }
+  if (identity) {
     execFileSync(
       'codesign',
       ['--force', '--sign', identity, '--entitlements', masEntitlements, '--timestamp=none', output],

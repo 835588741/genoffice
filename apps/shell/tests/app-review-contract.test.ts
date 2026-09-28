@@ -56,6 +56,8 @@ describe('App Review regression contracts', () => {
     expect(builder).toContain('to: AUTH_SESSION_HELPER')
     expect(authBuild).toContain('CFBundleDisplayName')
     expect(authBuild).toContain('<string>AiOffice</string>')
+    expect(authBuild).toContain('CFBundleURLSchemes')
+    expect(authBuild).toContain('net.luanqing.aioffice.auth')
     expect(authSession).toContain("'native', 'AiOffice.app', 'Contents', 'MacOS', 'auth-session'")
     expect(authBuild).toContain('codesign')
     expect(authBuild).toContain('entitlements.mas.inherit.plist')
@@ -72,8 +74,9 @@ describe('App Review regression contracts', () => {
     expect(shellMain).toContain('startAppleLogin')
   })
 
-  it('allows the sandboxed sign-in callback server to listen on localhost', () => {
-    const entitlements = readFileSync(join(__dirname, '../build/entitlements.mas.plist'), 'utf8')
-    expect(entitlements).toMatch(/<key>com\.apple\.security\.network\.server<\/key>\s*<true\/>/)
+  it('uses an app-owned URL scheme instead of a browser-controlled loopback callback', () => {
+    expect(shellAuth).toContain("const AUTH_CALLBACK_SCHEME = 'net.luanqing.aioffice.auth'")
+    expect(shellAuth).toContain('AUTH_CALLBACK_URI')
+    expect(shellAuth).not.toContain("startAuthSession(lastAuthUrl, 'http')")
   })
 })
